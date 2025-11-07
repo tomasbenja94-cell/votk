@@ -20,7 +20,28 @@ function Login() {
       localStorage.setItem('username', response.data.username);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al iniciar sesión');
+      console.error('Login error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response,
+        request: err.request,
+        config: err.config
+      });
+      
+      let errorMessage = 'Error al iniciar sesión';
+      
+      if (err.response) {
+        // El servidor respondió con un código de error
+        errorMessage = err.response.data?.error || `Error del servidor: ${err.response.status}`;
+      } else if (err.request) {
+        // La petición se hizo pero no hubo respuesta
+        errorMessage = 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.';
+      } else {
+        // Algo más pasó
+        errorMessage = err.message || 'Error desconocido';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -22,8 +22,14 @@ const getApiUrl = () => {
 
 const API_URL = getApiUrl();
 
+// Log para debug (solo en desarrollo)
+if (process.env.NODE_ENV === 'development' || window.location.hostname !== 'localhost') {
+  console.log('🔗 API URL:', API_URL);
+}
+
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 10000, // 10 segundos de timeout
   headers: {
     'Content-Type': 'application/json'
   }
