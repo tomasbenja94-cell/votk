@@ -1455,8 +1455,6 @@ const handlers = {
         // For non-multas or direct payments (Macro, Otra, Rentas), edit the message to show PAGADO status
         try {
           const originalText = ctx.callbackQuery.message.text || ctx.callbackQuery.message.caption || '';
-          const formatARS = require('../../utils/helpers').formatARS;
-          const montoFormateado = txBefore.amount_ars ? formatARS(txBefore.amount_ars) : '';
           
           // Edit message to show PAGADO status
           const pagadoText = originalText.replace(/Estado:.*/i, `Estado: ✅ PAGADO por @${ctx.from.username || 'admin'}`);
