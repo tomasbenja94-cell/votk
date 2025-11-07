@@ -206,47 +206,47 @@ bot.on('text', async (ctx) => {
   
   const text = ctx.message.text.trim();
   
-  // Handle reply keyboard buttons first
-  if (text === 'PAGAR') {
+  // Handle reply keyboard buttons first (with emojis)
+  if (text === '💳 PAGAR' || text === 'PAGAR') {
     await commandHandlers.pagar(ctx);
     return;
-  } else if (text === 'CARGAR SALDO') {
+  } else if (text === '💰 CARGAR SALDO' || text === 'CARGAR SALDO') {
     await commandHandlers.cargar(ctx);
     return;
-  } else if (text === 'SALDO') {
+  } else if (text === '💵 SALDO' || text === 'SALDO') {
     await commandHandlers.saldo(ctx);
     return;
-  } else if (text === 'HISTORIAL') {
+  } else if (text === '📊 HISTORIAL' || text === 'HISTORIAL') {
     await commandHandlers.historial(ctx);
     return;
-  } else if (text === 'MENU PRINCIPAL') {
+  } else if (text === '🏠 MENU PRINCIPAL' || text === 'MENU PRINCIPAL') {
     await commandHandlers.start(ctx);
     return;
-  } else if (text === 'PAGAR MACRO / PLUSPAGOS') {
+  } else if (text === '🏦 PAGAR MACRO / PLUSPAGOS' || text === 'PAGAR MACRO / PLUSPAGOS') {
     await commandHandlers.pagarMacro(ctx);
     return;
-  } else if (text === 'PAGAR RENTAS CÓRDOBA') {
+  } else if (text === '🏛️ PAGAR RENTAS CÓRDOBA' || text === 'PAGAR RENTAS CÓRDOBA') {
     await commandHandlers.pagarRentas(ctx);
     return;
-  } else if (text === 'PAGAR OTRO SERVICIO') {
+  } else if (text === '🔹 PAGAR OTRO SERVICIO' || text === 'PAGAR OTRO SERVICIO') {
     await commandHandlers.pagarOtra(ctx);
     return;
-  } else if (text === 'PAGAR MULTAS PBA') {
+  } else if (text === '🚗 PAGAR MULTAS PBA' || text === 'PAGAR MULTAS PBA') {
     await commandHandlers.pagarMultas(ctx);
     return;
-  } else if (text === 'AUTOMOTOR') {
+  } else if (text === '🚗 AUTOMOTOR' || text === 'AUTOMOTOR') {
     await commandHandlers.pagarRentasAutomotor(ctx);
     return;
-  } else if (text === 'INMOBILIARIO') {
+  } else if (text === '🏠 INMOBILIARIO' || text === 'INMOBILIARIO') {
     await commandHandlers.pagarRentasInmobiliario(ctx);
     return;
-  } else if (text === 'INGRESOS BRUTOS') {
+  } else if (text === '📈 INGRESOS BRUTOS' || text === 'INGRESOS BRUTOS') {
     await commandHandlers.pagarRentasIngresos(ctx);
     return;
-  } else if (text === 'SELLOS') {
+  } else if (text === '📄 SELLOS' || text === 'SELLOS') {
     await commandHandlers.pagarRentasSellos(ctx);
     return;
-  } else if (text === 'MULTAS DE CAMINERA') {
+  } else if (text === '🚓 MULTAS DE CAMINERA' || text === 'MULTAS DE CAMINERA') {
     await commandHandlers.pagarRentasCaminera(ctx);
     return;
   }

@@ -48,10 +48,10 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'PAGAR' }],
-            [{ text: 'CARGAR SALDO' }],
-            [{ text: 'SALDO' }],
-            [{ text: 'HISTORIAL' }]
+            [{ text: '💳 PAGAR' }],
+            [{ text: '💰 CARGAR SALDO' }],
+            [{ text: '💵 SALDO' }],
+            [{ text: '📊 HISTORIAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -109,7 +109,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -142,7 +142,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -188,7 +188,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -214,7 +214,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -240,7 +240,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -266,7 +266,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -292,7 +292,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -325,7 +325,7 @@ const commands = {
         const keyboard = {
           reply_markup: {
             keyboard: [
-              [{ text: 'MENU PRINCIPAL' }]
+              [{ text: '🏠 MENU PRINCIPAL' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: false
@@ -342,12 +342,12 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'AUTOMOTOR' }],
-            [{ text: 'INMOBILIARIO' }],
-            [{ text: 'INGRESOS BRUTOS' }],
-            [{ text: 'SELLOS' }],
-            [{ text: 'MULTAS DE CAMINERA' }],
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🚗 AUTOMOTOR' }],
+            [{ text: '🏠 INMOBILIARIO' }],
+            [{ text: '📈 INGRESOS BRUTOS' }],
+            [{ text: '📄 SELLOS' }],
+            [{ text: '🚓 MULTAS DE CAMINERA' }],
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -380,7 +380,7 @@ const commands = {
         const keyboard = {
           reply_markup: {
             keyboard: [
-              [{ text: 'MENU PRINCIPAL' }]
+              [{ text: '🏠 MENU PRINCIPAL' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: false
@@ -400,7 +400,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -426,7 +426,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -452,7 +452,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -478,7 +478,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -504,7 +504,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -530,7 +530,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -562,7 +562,7 @@ const commands = {
         const keyboard = {
           reply_markup: {
             keyboard: [
-              [{ text: 'MENU PRINCIPAL' }]
+              [{ text: '🏠 MENU PRINCIPAL' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: false
@@ -582,7 +582,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -615,7 +615,7 @@ const commands = {
         const keyboard = {
           reply_markup: {
             keyboard: [
-              [{ text: 'MENU PRINCIPAL' }]
+              [{ text: '🏠 MENU PRINCIPAL' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: false
@@ -632,11 +632,11 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'PAGAR MACRO / PLUSPAGOS' }],
-            [{ text: 'PAGAR RENTAS CÓRDOBA' }],
-            [{ text: 'PAGAR OTRO SERVICIO' }],
-            [{ text: 'PAGAR MULTAS PBA' }],
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏦 PAGAR MACRO / PLUSPAGOS' }],
+            [{ text: '🏛️ PAGAR RENTAS CÓRDOBA' }],
+            [{ text: '🔹 PAGAR OTRO SERVICIO' }],
+            [{ text: '🚗 PAGAR MULTAS PBA' }],
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -691,7 +691,7 @@ const commands = {
         const keyboard = {
           reply_markup: {
             keyboard: [
-              [{ text: 'MENU PRINCIPAL' }]
+              [{ text: '🏠 MENU PRINCIPAL' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: false
@@ -740,7 +740,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -799,7 +799,7 @@ const commands = {
         const keyboard = {
           reply_markup: {
             keyboard: [
-              [{ text: 'MENU PRINCIPAL' }]
+              [{ text: '🏠 MENU PRINCIPAL' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: false
@@ -880,7 +880,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -921,7 +921,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -998,7 +998,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -1032,7 +1032,7 @@ const commands = {
       const keyboard = {
         reply_markup: {
           keyboard: [
-            [{ text: 'MENU PRINCIPAL' }]
+            [{ text: '🏠 MENU PRINCIPAL' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
