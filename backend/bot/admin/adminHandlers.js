@@ -1818,8 +1818,14 @@ const handlers = {
         }
       }
     } catch (error) {
-      console.error('Error in handlePagoCancel:', error);
-      await ctx.answerCbQuery('❌ Error al cancelar pago', true);
+      console.error('❌❌❌ CRITICAL ERROR in handlePagoCancel:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      try {
+        await ctx.answerCbQuery('❌ Error al cancelar pago', true);
+      } catch (answerError) {
+        console.error('Could not answer callback query:', answerError);
+      }
     }
   },
 
