@@ -593,7 +593,6 @@ const commands = {
       const keyboard = {
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }],
             [{ text: 'PAGAR MACRO / PLUSPAGOS', callback_data: 'action_pagar_macro' }],
             [{ text: 'PAGAR RENTAS CÓRDOBA', callback_data: 'action_pagar_rentas' }],
             [{ text: 'PAGAR OTRO SERVICIO', callback_data: 'action_pagar_otra' }],
