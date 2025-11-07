@@ -85,6 +85,9 @@ const handlers = {
       case 'cancelar_waiting_motivo':
         // This is handled in admin handlers
         break;
+      case 'admin_sending_noticia':
+        await this.handleAdminNoticia(ctx, text);
+        break;
     }
   },
 
@@ -1847,6 +1850,164 @@ const handlers = {
     
     const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
     chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+  },
+
+  async handleAdminNoticia(ctx, text) {
+    try {
+      const { isAdmin } = require('../../utils/helpers');
+      
+      // Verificar que sigue siendo admin
+      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+      if (!isUserAdmin) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ No tienes permisos para enviar noticias.');
+        return;
+      }
+
+      // Obtener todos los usuarios
+      const usersResult = await pool.query(
+        'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL'
+      );
+
+      if (usersResult.rows.length === 0) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ No hay usuarios registrados en el bot.');
+        return;
+      }
+
+      const totalUsers = usersResult.rows.length;
+      let sentCount = 0;
+      let failedCount = 0;
+
+      // Enviar mensaje a todos los usuarios
+      await ctx.reply(`📢 Enviando noticia a ${totalUsers} usuarios...`);
+
+      for (const user of usersResult.rows) {
+        try {
+          await ctx.telegram.sendMessage(
+            user.telegram_id,
+            text,
+            { parse_mode: 'Markdown' }
+          );
+          sentCount++;
+          
+          // Pequeña pausa para evitar rate limits
+          if (sentCount % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (error) {
+          failedCount++;
+          console.error(`Error sending to user ${user.telegram_id}:`, error.message);
+        }
+      }
+
+      // Limpiar estado
+      stateManager.clearState(ctx.from.id);
+
+      // Notificar resultado al admin
+      await ctx.reply(
+        `✅ *Noticia enviada*\n\n` +
+        `📊 Total usuarios: ${totalUsers}\n` +
+        `✅ Enviados: ${sentCount}\n` +
+        `❌ Fallidos: ${failedCount}`,
+        { parse_mode: 'Markdown' }
+      );
+
+      // Log audit
+      const auditLogger = require('../../services/auditLogger');
+      await auditLogger.log(
+        ctx.from.username || `user_${ctx.from.id}`,
+        'send_noticia',
+        { totalUsers, sentCount, failedCount }
+      );
+    } catch (error) {
+      console.error('Error in handleAdminNoticia:', error);
+      stateManager.clearState(ctx.from.id);
+      await ctx.reply('❌ Error al enviar noticia.');
+    }
+  },
+
+  async handleAdminNoticiaPhoto(ctx) {
+    try {
+      const { isAdmin } = require('../../utils/helpers');
+      
+      // Verificar que sigue siendo admin
+      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+      if (!isUserAdmin) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ No tienes permisos para enviar noticias.');
+        return;
+      }
+
+      // Obtener todos los usuarios
+      const usersResult = await pool.query(
+        'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL'
+      );
+
+      if (usersResult.rows.length === 0) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ No hay usuarios registrados en el bot.');
+        return;
+      }
+
+      const totalUsers = usersResult.rows.length;
+      let sentCount = 0;
+      let failedCount = 0;
+
+      // Obtener la foto más grande
+      const photo = ctx.message.photo[ctx.message.photo.length - 1];
+      const fileId = photo.file_id;
+      const caption = ctx.message.caption || '';
+
+      // Enviar mensaje a todos los usuarios
+      await ctx.reply(`📢 Enviando noticia con imagen a ${totalUsers} usuarios...`);
+
+      for (const user of usersResult.rows) {
+        try {
+          await ctx.telegram.sendPhoto(
+            user.telegram_id,
+            fileId,
+            {
+              caption: caption,
+              parse_mode: caption ? 'Markdown' : undefined
+            }
+          );
+          sentCount++;
+          
+          // Pequeña pausa para evitar rate limits
+          if (sentCount % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (error) {
+          failedCount++;
+          console.error(`Error sending photo to user ${user.telegram_id}:`, error.message);
+        }
+      }
+
+      // Limpiar estado
+      stateManager.clearState(ctx.from.id);
+
+      // Notificar resultado al admin
+      await ctx.reply(
+        `✅ *Noticia con imagen enviada*\n\n` +
+        `📊 Total usuarios: ${totalUsers}\n` +
+        `✅ Enviados: ${sentCount}\n` +
+        `❌ Fallidos: ${failedCount}`,
+        { parse_mode: 'Markdown' }
+      );
+
+      // Log audit
+      const auditLogger = require('../../services/auditLogger');
+      await auditLogger.log(
+        ctx.from.username || `user_${ctx.from.id}`,
+        'send_noticia_photo',
+        { totalUsers, sentCount, failedCount }
+      );
+    } catch (error) {
+      console.error('Error in handleAdminNoticiaPhoto:', error);
+      stateManager.clearState(ctx.from.id);
+      await ctx.reply('❌ Error al enviar noticia con imagen.');
+    }
   }
 };
 

@@ -114,6 +114,7 @@ bot.command('comandosgrupo', commandHandlers.comandosgrupo);
 bot.command('comandosop', commandHandlers.comandosop);
 bot.command('politicas', commandHandlers.politicas);
 bot.command('banear', adminHandlers.banear);
+bot.command('noticia', adminHandlers.noticia);
 
 // Register callbacks
 bot.on('callback_query', async (ctx) => {

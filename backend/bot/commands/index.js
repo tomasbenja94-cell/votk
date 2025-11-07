@@ -991,6 +991,8 @@ const commands = {
         `/config - Ver configuración del bot\n` +
         `/setgroupchatid - Configurar chat_id de un grupo\n` +
         `/eliminarsaldo <telegram_id> <monto> - Eliminar saldo de un usuario\n` +
+        `/banear @usuario <minutos> - Banear un usuario por tiempo determinado\n` +
+        `/noticia - Enviar noticia a todos los usuarios (texto o imagen)\n` +
         `/trc20 - Enlace de Tronscan (solo en grupos)\n` +
         `/bep20 - Enlace de BSCScan (solo en grupos)\n` +
         `/comandosop - Ver esta lista\n\n` +

@@ -2423,6 +2423,69 @@ const handlers = {
       console.error('Error in /banear:', error);
       await ctx.reply('❌ Error al banear usuario.');
     }
+  },
+
+  async noticia(ctx) {
+    try {
+      // Verificar que el usuario es admin
+      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+      if (!isUserAdmin) {
+        await ctx.reply('❌ Solo los administradores pueden usar este comando.');
+        return;
+      }
+
+      // Verificar que está en un grupo de órdenes o en privado
+      const chatType = ctx.chat.type;
+      const isGroup = chatType === 'group' || chatType === 'supergroup';
+      const isPrivate = chatType === 'private';
+
+      if (!isGroup && !isPrivate) {
+        await ctx.reply('❌ Este comando solo puede usarse en grupos de administración o en privado con el bot.');
+        return;
+      }
+
+      // Si está en grupo, verificar que es un grupo de administración
+      if (isGroup) {
+        const groupManager = require('../utils/groupManager');
+        const adminGroups = config.admin_groups || [];
+        let found = false;
+        
+        for (const groupLink of adminGroups) {
+          try {
+            const groupChatId = await groupManager.getGroupChatId(ctx.telegram, groupLink);
+            if (groupChatId && ctx.chat.id.toString() === groupChatId.toString()) {
+              found = true;
+              break;
+            }
+          } catch (e) {
+            // Ignorar errores
+          }
+        }
+        
+        if (!found) {
+          await ctx.reply('❌ Este comando solo puede usarse en grupos de administración configurados.');
+          return;
+        }
+      }
+
+      // Pedir al admin que envíe el mensaje (texto, imagen, etc.)
+      await ctx.reply(
+        '📢 *Enviar Noticia a Todos los Usuarios*\n\n' +
+        'Por favor, envía el mensaje que deseas enviar a todos los usuarios.\n\n' +
+        'Puedes enviar:\n' +
+        '• Texto\n' +
+        '• Imágenes con texto\n' +
+        '• Cualquier tipo de mensaje\n\n' +
+        'El mensaje se enviará a todos los usuarios registrados en el bot.',
+        { parse_mode: 'Markdown' }
+      );
+
+      // Guardar el estado para capturar el siguiente mensaje
+      stateManager.setState(ctx.from.id, 'admin_sending_noticia');
+    } catch (error) {
+      console.error('Error in /noticia:', error);
+      await ctx.reply('❌ Error al ejecutar el comando.');
+    }
   }
 };
 
