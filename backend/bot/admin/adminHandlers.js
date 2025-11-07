@@ -1528,14 +1528,14 @@ const handlers = {
       }
       
       // Now handle admin group message updates (non-blocking)
-      const txBefore = txAfter;
-      const wasAdmitted = false; // Reset for admin message handling
+      // Check if it was admitted before marking as paid
+      const wasAdmittedBefore = txAfter.status === 'admitido' || (txAfter.status === 'pagado' && txAfter.amount_ars);
       
       // For multas payments that were admitted, delete the message and show as PAGADO
-      if (wasAdmitted && txBefore.amount_ars) {
+      if (wasAdmittedBefore && txAfter.amount_ars) {
         // This is a multas payment that was admitted, now marked as paid
         try {
-          const proofImage = txBefore.proof_image || '';
+          const proofImage = txAfter.proof_image || '';
           if (proofImage.startsWith('group_message|')) {
             const parts = proofImage.split('|');
             if (parts.length >= 3) {
@@ -1555,13 +1555,13 @@ const handlers = {
         }
 
         // Send new message to group showing PAGADO status
-        const montoFormateadoGroup = formatARS(txBefore.amount_ars);
+        const montoFormateadoGroup = formatARS(txAfter.amount_ars);
         
         const pagadoMessage = `✅ *ORDEN PAGADA*\n\n` +
           `📋 *Orden ID:* ${transactionId}\n\n` +
           `👤 *Usuario:* @${user.username || 'sin_username'}\n\n` +
           `💰 *Monto Multa ARS:* ${montoFormateadoGroup}\n` +
-          `💵 *COBRADO USDT:* ${txBefore.amount_usdt.toFixed(2)}\n\n` +
+          `💵 *COBRADO USDT:* ${txAfter.amount_usdt.toFixed(2)}\n\n` +
           `📊 *Estado:* PAGADO`;
 
         const groupManager = require('../utils/groupManager');
