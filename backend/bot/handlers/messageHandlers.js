@@ -839,6 +839,16 @@ const handlers = {
 
   async handlePagarMonto(ctx, montoText) {
     try {
+      console.log(`[DEBUG handlePagarMonto] Called with text: "${montoText}"`);
+      
+      // Check if user is trying to use a button instead of entering amount
+      if (montoText === '🏠 MENU PRINCIPAL' || montoText === 'MENU PRINCIPAL' || 
+          montoText === 'Sí' || montoText === 'No' || 
+          montoText === 'Confirmar' || montoText === 'Cancelar') {
+        console.log(`[DEBUG handlePagarMonto] User pressed button instead of entering amount, ignoring`);
+        return;
+      }
+      
       // Normalizar formato: aceptar coma como separador decimal y remover puntos de miles
       // Ejemplo: "500000,00" o "500.000,00" -> 500000.00
       let montoNormalizado = montoText.trim()
@@ -859,6 +869,7 @@ const handlers = {
       
       // Debug logging
       console.log(`[DEBUG handlePagarMonto] Monto ARS: ${monto}, Type: ${type}, Data:`, JSON.stringify(data));
+      console.log(`[DEBUG handlePagarMonto] Current state: ${stateManager.getState(ctx.from.id)}`);
       
       // Calculate final USDT amount - ALL types charge 20%
       // Convert to USDT first, then calculate 20%
@@ -1017,6 +1028,11 @@ const handlers = {
         }
       };
       
+      // IMPORTANT: Clear the waiting state BEFORE showing confirmation
+      // This prevents the user from entering the amount again
+      stateManager.setState(ctx.from.id, `pagar_waiting_confirm_${type}`);
+      
+      console.log(`[DEBUG handlePagarMonto] Showing confirmation message for type: ${type}`);
       await ctx.replyWithMarkdown(summaryMessage, keyboard);
       return;
     } catch (error) {
