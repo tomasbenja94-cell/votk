@@ -1965,13 +1965,8 @@ const handlers = {
           console.error('Error sending confirmation message:', sendError);
         }
         
-        // Clean chat AFTER sending all messages
-        await chatManager.cleanChat(
-          { telegram: botInstance.telegram, chat: { id: transaction.telegram_id } },
-          transaction.telegram_id,
-          0
-        );
-        chatManager.clearHistory(transaction.telegram_id);
+        // Don't clean chat - let the user see the actas text and confirmation message
+        // The chat will be cleaned when they press MENU PRINCIPAL
         
         await ctx.reply('✅ Texto enviado al cliente correctamente.');
       } catch (error) {
