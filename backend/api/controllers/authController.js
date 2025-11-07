@@ -7,12 +7,35 @@ async function login(req, res) {
     const { username, password } = req.body;
 
     // Check credentials from database
-    const userResult = await pool.query(
+    let userResult = await pool.query(
       "SELECT value FROM config WHERE key = 'web_user'"
     );
-    const passResult = await pool.query(
+    let passResult = await pool.query(
       "SELECT value FROM config WHERE key = 'web_pass'"
     );
+
+    // Si no existen las credenciales en la BD, inicializarlas con valores por defecto
+    if (userResult.rows.length === 0) {
+      const defaultUser = 'flipendo';
+      await pool.query(
+        "INSERT INTO config (key, value, updated_at) VALUES ('web_user', $1, NOW()) ON CONFLICT (key) DO NOTHING",
+        [defaultUser]
+      );
+      userResult = await pool.query(
+        "SELECT value FROM config WHERE key = 'web_user'"
+      );
+    }
+
+    if (passResult.rows.length === 0) {
+      const defaultPass = 'fucker123';
+      await pool.query(
+        "INSERT INTO config (key, value, updated_at) VALUES ('web_pass', $1, NOW()) ON CONFLICT (key) DO NOTHING",
+        [defaultPass]
+      );
+      passResult = await pool.query(
+        "SELECT value FROM config WHERE key = 'web_pass'"
+      );
+    }
 
     const validUser = userResult.rows[0]?.value || 'flipendo';
     const validPass = passResult.rows[0]?.value || 'fucker123';
