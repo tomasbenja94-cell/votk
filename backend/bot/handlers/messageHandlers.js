@@ -1369,9 +1369,6 @@ const handlers = {
         const confirmMsg = `✅ *Orden enviada*\n\n` +
           `Su pago fue recibido correctamente.\n` +
           `Le notificaremos cuando finalice la gestión.\n\n` +
-        const confirmMsg = `✅ *Orden enviada*\n\n` +
-          `Su pago fue recibido correctamente.\n` +
-          `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
           `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
         
