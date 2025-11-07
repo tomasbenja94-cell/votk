@@ -1401,8 +1401,14 @@ const handlers = {
         'SELECT * FROM transactions WHERE id = $1',
         [transactionId]
       );
+      
+      if (txDetailsAfter.rows.length === 0) {
+        console.error('❌ Transaction not found after update!');
+        await ctx.answerCbQuery('❌ Error: Transacción no encontrada después de actualizar', true);
+        return;
+      }
+      
       const txAfter = txDetailsAfter.rows[0];
-      const wasAdmitted = txAfter.status === 'admitido' || txAfter.status === 'pagado';
 
       // IMMEDIATELY send confirmation message to client - DO THIS FIRST
       const bot = require('../bot').bot;
@@ -1637,8 +1643,14 @@ const handlers = {
 
       await ctx.answerCbQuery('✅ Pago confirmado');
     } catch (error) {
-      console.error('Error in handlePagoConfirm:', error);
-      await ctx.answerCbQuery('❌ Error al confirmar pago', true);
+      console.error('❌❌❌ CRITICAL ERROR in handlePagoConfirm:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      try {
+        await ctx.answerCbQuery('❌ Error al confirmar pago', true);
+      } catch (answerError) {
+        console.error('Could not answer callback query:', answerError);
+      }
     }
   },
 
