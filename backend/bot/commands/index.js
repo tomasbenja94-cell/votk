@@ -17,6 +17,7 @@ const ADMIN_COMMANDS_BY_ROLE = {
     '/eliminarsaldo <telegram_id> <monto> - Ajustar saldo de un usuario',
     '/banear @usuario <minutos> - Banear usuarios temporalmente',
     '/noticia - Enviar noticia a todos los usuarios',
+    '/resumen - Resumen diario de operaciones',
     '/trc20 - Enlace de Tronscan (grupos)',
     '/bep20 - Enlace de BSCScan (grupos)',
     '/comandosop - Ver esta lista'
@@ -25,6 +26,7 @@ const ADMIN_COMMANDS_BY_ROLE = {
     '/admin - Acceder al panel de administración',
     '/cancelar <ID> <motivo> - Cancelar una transacción',
     '/logs - Ver logs del sistema',
+    '/resumen - Resumen diario de operaciones',
     '/trc20 - Enlace de Tronscan (grupos)',
     '/bep20 - Enlace de BSCScan (grupos)',
     '/comandosop - Ver esta lista'

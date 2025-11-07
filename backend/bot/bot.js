@@ -120,6 +120,7 @@ bot.command('politicas', commandHandlers.politicas);
 bot.command('banear', adminHandlers.banear);
 bot.command('notificaciones', commandHandlers.notificaciones);
 bot.command('noticia', adminHandlers.noticia);
+bot.command('resumen', adminHandlers.resumen);
 
 // Register callbacks
 bot.on('callback_query', async (ctx) => {
@@ -342,6 +343,7 @@ async function startBot() {
               { command: 'macro', description: '🏦 MACRO - Operaciones Macro / PlusPagos' },
               { command: 'rentas', description: '🏠 RENTAS - Rentas Córdoba' },
               { command: 'otroservicio', description: '🧾 OTRO SERVICIO - Otros pagos' },
+              { command: 'resumen', description: '📈 RESUMEN - Estadísticas del día (admins)' },
               { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' },
               { command: 'notificaciones', description: '🔔 Configurar notificaciones' }
             ]);

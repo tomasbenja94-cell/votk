@@ -9,6 +9,7 @@ const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
 const commandHandlers = require('../commands');
 const config = require('../../config/default.json');
+const dailySummaryService = require('../../services/dailySummaryService');
 
 const ADMIN_PERMISSIONS = {
   superadmin: {
@@ -2467,29 +2468,36 @@ const handlers = {
   },
 
   async noticia(ctx) {
+     try {
+       const adminContext = await ensureAdminPermission(ctx, 'broadcast');
+       if (!adminContext) {
+         return;
+       }
+ 
+       // Verificar que está en un grupo de órdenes o en privado
+       const chatType = ctx.chat.type;
+       const isGroup = chatType === 'group' || chatType === 'supergroup';
+       const isPrivate = chatType === 'private';
+@@
+       stateManager.setState(ctx.from.id, 'admin_sending_noticia');
+     } catch (error) {
+       console.error('Error in /noticia:', error);
+       await ctx.reply('❌ Error al ejecutar el comando.');
+     }
+  },
+
+  async resumen(ctx) {
     try {
-      const adminContext = await ensureAdminPermission(ctx, 'broadcast');
+      const adminContext = await ensureAdminPermission(ctx, 'processPayments');
       if (!adminContext) {
         return;
       }
 
-      // Pedir al admin que envíe el mensaje (texto, imagen, etc.)
-      await ctx.reply(
-        '📢 *Enviar Noticia a Todos los Usuarios*\n\n' +
-        'Por favor, envía el mensaje que deseas enviar a todos los usuarios.\n\n' +
-        'Puedes enviar:\n' +
-        '• Texto\n' +
-        '• Imágenes con texto\n' +
-        '• Cualquier tipo de mensaje\n\n' +
-        'El mensaje se enviará a todos los usuarios registrados en el bot.',
-        { parse_mode: 'Markdown' }
-      );
-
-      // Guardar el estado para capturar el siguiente mensaje
-      stateManager.setState(ctx.from.id, 'admin_sending_noticia');
+      const message = await dailySummaryService.generateSummary();
+      await ctx.replyWithMarkdown(message);
     } catch (error) {
-      console.error('Error in /noticia:', error);
-      await ctx.reply('❌ Error al ejecutar el comando.');
+      console.error('Error in /resumen:', error);
+      await ctx.reply('❌ Error al generar resumen.');
     }
   }
 };

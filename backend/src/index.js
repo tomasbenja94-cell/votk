@@ -8,6 +8,7 @@ const { startBot, bot } = require('../bot/bot');
 const pool = require('../db/connection');
 const autoCancelService = require('../services/autoCancelService');
 const pendingReminderService = require('../services/pendingReminderService');
+const dailySummaryService = require('../services/dailySummaryService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +46,7 @@ async function initialize() {
     startBot()
       .then(() => {
         pendingReminderService.start(bot);
+        dailySummaryService.start(bot);
       })
       .catch((error) => {
         console.error('⚠️  Bot error (continuing anyway):', error.message);
@@ -54,6 +56,7 @@ async function initialize() {
     // Start auto-cancel service for old orders
     autoCancelService.start();
     pendingReminderService.start(bot);
+    dailySummaryService.start(bot);
 
     // Start server
     app.listen(PORT, () => {

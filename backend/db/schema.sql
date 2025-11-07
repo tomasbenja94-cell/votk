@@ -109,7 +109,8 @@ INSERT INTO config (key, value) VALUES
   ('security_question_a', 'GAYS'),
   ('price_source', 'COINGECKO'),
   ('price_cache_seconds', '30'),
-  ('pending_alert_minutes', '45')
+  ('pending_alert_minutes', '45'),
+  ('daily_summary_hour', '20')
 ON CONFLICT (key) DO NOTHING;
 
 -- Bot messages table

@@ -15,6 +15,12 @@ async function updateSchemaPhase3() {
       ON CONFLICT (key) DO NOTHING
     `);
 
+    await pool.query(`
+      INSERT INTO config (key, value, updated_at)
+      VALUES ('daily_summary_hour', '20', NOW())
+      ON CONFLICT (key) DO NOTHING
+    `);
+
     console.log('✅ Esquema actualizado: columna alerted_at y configuración pending_alert_minutes');
   } catch (error) {
     console.error('❌ Error actualizando esquema (fase 3):', error);

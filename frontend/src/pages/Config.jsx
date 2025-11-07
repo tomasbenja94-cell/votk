@@ -176,6 +176,23 @@ function Config() {
             </p>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Hora del resumen diario (0-23)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="23"
+              value={config.daily_summary_hour || ''}
+              onChange={(e) => handleChange('daily_summary_hour', e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Hora (en formato 24h, zona horaria Buenos Aires) en la que se enviará el resumen diario automático.
+            </p>
+          </div>
+
           <button
             onClick={handleSave}
             disabled={saving}
