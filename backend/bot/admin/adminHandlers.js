@@ -1880,72 +1880,89 @@ const handlers = {
             20 // 20 steps for smoother animation
           );
           
-          // After progress bar, show final confirmation message
-          const montoFormateado = formatARS(txForProgress.rows[0].amount_ars);
-          const finalMessage = `✅ *Orden enviada*\n\n` +
-            `Tu pago ha sido recibido.\n` +
-            `Te notificaremos cuando sea procesado.\n\n` +
-            `MONTO PAGADO: ${montoFormateado}\n` +
-            `COBRADO: ${txForProgress.rows[0].amount_usdt.toFixed(0)} USDT\n\n` +
-            `Operacion guardada en /movimientos.`;
-          
-          await botInstance.telegram.editMessageText(
-            userChatId,
-            userMessageId,
-            null,
-            finalMessage,
-            { parse_mode: 'Markdown' }
-          );
+          // Delete the "Orden enviada" message after progress bar
+          try {
+            await botInstance.telegram.deleteMessage(userChatId, userMessageId);
+          } catch (deleteError) {
+            console.log('Could not delete user message:', deleteError.message);
+          }
         }
         
-        // Send actas text to client
-        await botInstance.telegram.sendMessage(
-          transaction.telegram_id,
-          actasText,
-          { parse_mode: 'Markdown' }
-        );
+        // Send actas text to client FIRST
+        try {
+          await botInstance.telegram.sendMessage(
+            transaction.telegram_id,
+            actasText,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (sendError) {
+          console.error('Error sending actas text:', sendError);
+          throw sendError;
+        }
         
-        // Clean chat and show welcome message (similar to old handlePagoAdmitir logic)
+        // Get service name from transaction or admin message
+        let nombreServicio = 'Servicio';
+        try {
+          // Try to determine service name from transaction type or identifier
+          if (transaction.identifier) {
+            nombreServicio = 'Multa';
+          }
+        } catch (e) {
+          console.log('Could not extract service name');
+        }
+        
+        // Send final confirmation message with all details
+        const montoFormateado = txForProgress.rows[0]?.amount_ars ? formatARS(txForProgress.rows[0].amount_ars) : '';
+        const fechaHora = new Date().toLocaleString('es-AR', { 
+          timeZone: 'America/Argentina/Buenos_Aires',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        const finalMessage = `*Pago Realizado!* ✅\n\n` +
+          `Tu pago de *${nombreServicio}* fue pagado correctamente. ✅\n\n` +
+          `*DATOS DE PAGO:*\n\n` +
+          `*FECHA Y HORA:* ${fechaHora}\n` +
+          `*MONTO DEL PAGO:* ${montoFormateado}\n` +
+          `*TOTAL COBRADO:* ${txForProgress.rows[0]?.amount_usdt.toFixed(0) || '0'} USDT\n\n` +
+          `Muchas gracias por confiar!`;
+        
+        const menuKeyboard = {
+          reply_markup: {
+            keyboard: [
+              [{ text: '🏠 MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
+          }
+        };
+        
+        try {
+          const sentMessage = await botInstance.telegram.sendMessage(
+            transaction.telegram_id,
+            finalMessage,
+            { parse_mode: 'Markdown', reply_markup: menuKeyboard.reply_markup }
+          );
+          
+          // Save this message ID to delete it when MENU is pressed
+          await pool.query(
+            'UPDATE transactions SET proof_image = $1 WHERE id = $2',
+            [`pago_completado_message|${transaction.telegram_id}|${sentMessage.message_id}`, transactionId]
+          );
+        } catch (sendError) {
+          console.error('Error sending confirmation message:', sendError);
+        }
+        
+        // Clean chat AFTER sending all messages
         await chatManager.cleanChat(
           { telegram: botInstance.telegram, chat: { id: transaction.telegram_id } },
           transaction.telegram_id,
           0
         );
         chatManager.clearHistory(transaction.telegram_id);
-        
-        // Get user first name
-        let userFirstName = 'Usuario';
-        try {
-          const userInfo = await botInstance.telegram.getChat(transaction.telegram_id);
-          userFirstName = userInfo.first_name || userInfo.username || 'Usuario';
-        } catch (userInfoError) {
-          console.warn('Could not get user info:', userInfoError.message);
-        }
-        
-        // Send welcome message with new menu
-        const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-          `Hola ${userFirstName}!\n\n` +
-          `Sistema de pagos y recargas USDT.\n\n` +
-          `Selecciona una opción:`;
-
-        const keyboard = {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'PAGAR', callback_data: 'action_pagar' }],
-              [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }],
-              [{ text: 'SALDO', callback_data: 'action_saldo' }],
-              [{ text: 'HISTORIAL', callback_data: 'action_historial' }]
-            ]
-          }
-        };
-
-        const welcomeMsg = await botInstance.telegram.sendMessage(
-          transaction.telegram_id,
-          welcomeMessage,
-          { parse_mode: 'Markdown', reply_markup: keyboard.reply_markup }
-        );
-        
-        chatManager.registerBotMessage(transaction.telegram_id, welcomeMsg.message_id);
         
         await ctx.reply('✅ Texto enviado al cliente correctamente.');
       } catch (error) {
