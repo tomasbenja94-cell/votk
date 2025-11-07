@@ -1216,4 +1216,10 @@ const commands = {
   }
 };
 
+// Command aliases for menú abreviado
+commands.multas = commands.pagarMultas;
+commands.macro = commands.pagarMacro;
+commands.rentas = commands.pagarRentas;
+commands.otroservicio = commands.pagarOtra;
+
 module.exports = commands;

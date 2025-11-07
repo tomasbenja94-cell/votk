@@ -99,6 +99,10 @@ bot.command('cargar', async (ctx) => {
   }
 });
 bot.command('pagar', commandHandlers.pagar);
+bot.command('multas', commandHandlers.multas);
+bot.command('macro', commandHandlers.macro);
+bot.command('rentas', commandHandlers.rentas);
+bot.command('otroservicio', commandHandlers.otroservicio);
 bot.command('movimientos', commandHandlers.movimientos);
 bot.command('admin', adminHandlers.authenticate);
 bot.command('cancelar', adminHandlers.cancelar);
@@ -332,8 +336,12 @@ async function startBot() {
             await bot.telegram.setMyCommands([
               { command: 'start', description: '💠 MENU - Menú principal' },
               { command: 'saldo', description: '💰 VER SALDO - Ver saldo disponible' },
-              { command: 'cargar', description: '🪙 CARGAR - Cargar saldo a tu cuenta' },
-              { command: 'pagar', description: '💸 PAGAR - Realizar un pago' },
+              { command: 'cargar', description: '🪙 CARGAR - Acreditar saldo a tu cuenta' },
+              { command: 'pagar', description: '💸 PAGAR - Menú general de pagos' },
+              { command: 'multas', description: '🏛️ MULTAS - Gestionar pagos de multas' },
+              { command: 'macro', description: '🏦 MACRO - Operaciones Macro / PlusPagos' },
+              { command: 'rentas', description: '🏠 RENTAS - Rentas Córdoba' },
+              { command: 'otroservicio', description: '🧾 OTRO SERVICIO - Otros pagos' },
               { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' },
               { command: 'notificaciones', description: '🔔 Configurar notificaciones' }
             ]);
