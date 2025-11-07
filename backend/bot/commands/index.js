@@ -205,7 +205,7 @@ const commands = {
   async pagarMultas(ctx) {
     try {
       await ctx.reply('@binopolisPAY_bot');
-      await ctx.answerCbQuery();
+      // No callback query para responder en uso directo del comando
     } catch (error) {
       console.error('Error in pagarMultas:', error);
       await ctx.answerCbQuery('❌ Error', true);
