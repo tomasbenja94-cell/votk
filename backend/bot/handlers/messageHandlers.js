@@ -958,6 +958,7 @@ const handlers = {
           }
         };
 
+        console.log(`[DEBUG handlePagarMonto] Showing confirmation for multas (type: ${multaTipo})`);
         await ctx.replyWithMarkdown(summaryMessage, keyboard);
         return;
       }
