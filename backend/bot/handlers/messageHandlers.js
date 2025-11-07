@@ -443,46 +443,44 @@ const handlers = {
         }
       };
 
-      // Send photo to ADMIN GROUPS (orders) - aquí se aprueba/rechaza
+      // Send photo to COMPROBANTES GROUP ONLY - solo https://t.me/+rjez71wbaYk4Yzdh
       const botInstance = require('../bot').bot;
-      const adminGroups = config.admin_groups || [];
+      const comprobantesGroupLink = 'https://t.me/+rjez71wbaYk4Yzdh';
       
       let sentToAdminGroup = false;
       let adminGroupMessageId = null;
       let adminGroupChatId = null;
       
-      // Send photo WITH buttons to admin groups (orders)
-      for (const inviteLink of adminGroups) {
-        try {
-          const groupChatId = await groupManager.getGroupChatId(botInstance, inviteLink);
-          
-          if (groupChatId) {
-            try {
-              // Usar sendPhoto con file_id directamente (incluye foto y botones en un solo mensaje)
-              // Esto facilita eliminar todo junto cuando se rechaza
-              const sentPhoto = await botInstance.telegram.sendPhoto(
-                groupChatId,
-                fileId,
-                {
-                  caption: orderMessage,
-                  parse_mode: 'Markdown',
-                  reply_markup: orderKeyboard.reply_markup
-                }
-              );
-              adminGroupMessageId = sentPhoto.message_id;
-              adminGroupChatId = groupChatId;
-              sentToAdminGroup = true;
-              console.log(`Photo with buttons sent successfully to admin group ${inviteLink}`);
-            } catch (error) {
-              console.error(`Error sending photo to admin group ${inviteLink}:`, error.message);
-              console.error(`Error details:`, error);
-            }
-          } else {
-            console.warn(`Chat ID not found for admin group: ${inviteLink}`);
+      // Send photo WITH buttons to comprobantes group ONLY
+      try {
+        const groupChatId = await groupManager.getGroupChatId(botInstance, comprobantesGroupLink);
+        
+        if (groupChatId) {
+          try {
+            // Usar sendPhoto con file_id directamente (incluye foto y botones en un solo mensaje)
+            // Esto facilita eliminar todo junto cuando se rechaza
+            const sentPhoto = await botInstance.telegram.sendPhoto(
+              groupChatId,
+              fileId,
+              {
+                caption: orderMessage,
+                parse_mode: 'Markdown',
+                reply_markup: orderKeyboard.reply_markup
+              }
+            );
+            adminGroupMessageId = sentPhoto.message_id;
+            adminGroupChatId = groupChatId;
+            sentToAdminGroup = true;
+            console.log(`Photo with buttons sent successfully to comprobantes group ${comprobantesGroupLink}`);
+          } catch (error) {
+            console.error(`Error sending photo to comprobantes group ${comprobantesGroupLink}:`, error.message);
+            console.error(`Error details:`, error);
           }
-        } catch (error) {
-          console.error(`Error processing admin group ${inviteLink}:`, error.message);
+        } else {
+          console.warn(`Chat ID not found for comprobantes group: ${comprobantesGroupLink}`);
         }
+      } catch (error) {
+        console.error(`Error processing comprobantes group ${comprobantesGroupLink}:`, error.message);
       }
       
       // Guardar message_id y chat_id en la transacción para poder eliminarlo después si se rechaza
