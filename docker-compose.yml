@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: binopolis_postgres
+    environment:
+      POSTGRES_USER: binopolis
+      POSTGRES_PASSWORD: binopolis123
+      POSTGRES_DB: binopolis_pay
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: binopolis_backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://binopolis:binopolis123@postgres:5432/binopolis_pay
+      PORT: 3001
+      BOT_TOKEN: ${BOT_TOKEN}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/config:/app/config
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+

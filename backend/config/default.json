@@ -1,0 +1,34 @@
+{
+  "bot_token": "8516105760:AAHyl_-DdfpW-QLzCmLH6ZQzbnaQTwbxFsk",
+  "bot_username": "@bor_tedt_bot",
+  "admin_groups": [
+    "https://t.me/+2ZlTcRZIOkkwZjQx"
+  ],
+  "transfer_groups": [
+    "https://t.me/+rjez71wbaYk4Yzdh"
+  ],
+  "admins": ["@pagoTODO25", "@AnubisCcs", "@AK3RRR"],
+  "web_user": "flipendo",
+  "web_pass": "fucker123",
+  "admin_password_bot": "Fucker123@",
+  "security_question": {
+    "q": "¿Qué es lo que más le gusta a Anubis?",
+    "a": "GAYS"
+  },
+  "wallets": [
+    {
+      "label": "BEP20 Principal",
+      "network": "bep20",
+      "address": "0x009d4b9Aa21A320EEB130720FE4626b79671155E"
+    },
+    {
+      "label": "TRC20 Principal",
+      "network": "trc20",
+      "address": "TCFeWDZgCZQxuveQUDEEpdq9TA31itHkdM"
+    }
+  ],
+  "price_source": "COINGECKO",
+  "price_cache_seconds": 30,
+  "bscscan_api_key": "XMBQN2IXNP45DUQDFMZXEY1AQDQUWRUPDV"
+}
+

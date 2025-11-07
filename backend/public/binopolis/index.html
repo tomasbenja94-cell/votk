@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Binopolis Pay</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1C1C1C;
+            color: #FFFFFF;
+            overflow-x: hidden;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #1C1C1C 0%, #2D2D2D 100%);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 216, 77, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .card:hover {
+            background: rgba(255, 216, 77, 0.1);
+            border-color: #FFD84D;
+            transform: translateY(-2px);
+        }
+        
+        .card:active {
+            transform: translateY(0);
+        }
+        
+        .gold-text {
+            color: #FFD84D;
+        }
+        
+        .progress-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #FFD84D 0%, #FFA500 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255, 216, 77, 0.3);
+            border-top: 3px solid #FFD84D;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #FFD84D;
+            border-radius: 10px;
+            padding: 15px 20px;
+            z-index: 1000;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen gradient-bg">
+        <!-- Header -->
+        <div class="sticky top-0 z-50 bg-black/50 backdrop-blur-md border-b border-yellow-500/20 p-4">
+            <div class="flex items-center justify-between">
+                <button id="backBtn" class="text-yellow-400 text-2xl hover:text-yellow-300 transition">
+                    ⬅️
+                </button>
+                <h1 class="text-2xl font-bold gold-text">💳 BINOPOLIS PAY</h1>
+                <div class="w-8"></div> <!-- Spacer -->
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-4">
+            <!-- Saldo Card -->
+            <div class="card rounded-2xl p-6 mb-6 fade-in">
+                <div class="text-center">
+                    <div class="text-sm text-gray-400 mb-2">Saldo disponible</div>
+                    <div id="saldo" class="text-4xl font-bold gold-text">
+                        <div class="loading-spinner w-8 h-8 mx-auto"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2">USDT</div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden">
+                <div class="card rounded-2xl p-6 mb-6">
+                    <div class="text-center">
+                        <div class="loading-spinner w-12 h-12 mx-auto mb-4"></div>
+                        <div class="text-lg mb-2">Procesando...</div>
+                        <div class="progress-bar h-2 mt-4">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <div id="progressText" class="text-sm text-gray-400 mt-2">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div id="actionButtons" class="grid grid-cols-2 gap-4 fade-in">
+                <!-- PAGAR MULTAS -->
+                <div class="card rounded-2xl p-6 text-center action-btn" data-action="pagar_multas">
+                    <div class="text-4xl mb-3">⚖️</div>
+                    <div class="text-lg font-semibold">PAGAR MULTAS</div>
+                </div>
+
+                <!-- PAGAR MACRO / PLUS PAGOS -->
+                <div class="card rounded-2xl p-6 text-center action-btn" data-action="pagar_macro">
+                    <div class="text-4xl mb-3">🏦</div>
+                    <div class="text-lg font-semibold">PAGAR MACRO / PLUS PAGOS</div>
+                </div>
+
+                <!-- VER SALDO -->
+                <div class="card rounded-2xl p-6 text-center action-btn" data-action="ver_saldo">
+                    <div class="text-4xl mb-3">💰</div>
+                    <div class="text-lg font-semibold">VER SALDO</div>
+                </div>
+
+                <!-- CARGAR SALDO -->
+                <div class="card rounded-2xl p-6 text-center action-btn" data-action="cargar_saldo">
+                    <div class="text-4xl mb-3">🪙</div>
+                    <div class="text-lg font-semibold">CARGAR SALDO</div>
+                </div>
+
+                <!-- CONFIGURACIÓN (Admin only) -->
+                <div id="adminConfig" class="card rounded-2xl p-6 text-center action-btn hidden" data-action="config">
+                    <div class="text-4xl mb-3">⚙️</div>
+                    <div class="text-lg font-semibold">CONFIGURACIÓN</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification hidden"></div>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // Get user data
+        const user = tg.initDataUnsafe?.user || {};
+        const userId = user.id;
+        const isAdmin = tg.initDataUnsafe?.user?.username === 'pagoTODO25' || 
+                       tg.initDataUnsafe?.user?.username === 'AnubisCcs' || 
+                       tg.initDataUnsafe?.user?.username === 'AK3RRR';
+
+        // Show admin config if admin
+        if (isAdmin) {
+            document.getElementById('adminConfig').classList.remove('hidden');
+        }
+
+        // Back button
+        document.getElementById('backBtn').addEventListener('click', () => {
+            tg.close();
+        });
+
+        // API base URL
+        const API_BASE = window.location.origin.replace(/\/binopolis.*$/, '');
+
+        // Load user balance
+        async function loadBalance() {
+            try {
+                if (!userId || userId === 'undefined') {
+                    console.error('Invalid user ID');
+                    document.getElementById('saldo').textContent = '0.00';
+                    return;
+                }
+                
+                const response = await fetch(`${API_BASE}/api/users/${userId}/balance`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                const saldo = parseFloat(data.balance || 0).toFixed(2);
+                document.getElementById('saldo').textContent = saldo;
+            } catch (error) {
+                console.error('Error loading balance:', error);
+                document.getElementById('saldo').textContent = '0.00';
+            }
+        }
+
+        // Show loading animation
+        function showLoading() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('actionButtons').classList.add('hidden');
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 100) progress = 100;
+                
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressText').textContent = Math.round(progress) + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                }
+            }, 200);
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const icons = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+            
+            notification.textContent = `${icons[type]} ${message}`;
+            notification.classList.remove('hidden');
+            
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Send action to bot
+        function sendAction(action) {
+            showLoading();
+            
+            const data = {
+                action: action,
+                userId: userId,
+                timestamp: Date.now()
+            };
+            
+            tg.sendData(JSON.stringify(data));
+            
+            // Show notification
+            setTimeout(() => {
+                showNotification('Acción enviada al bot', 'success');
+                setTimeout(() => {
+                    tg.close();
+                }, 1000);
+            }, 1500);
+        }
+
+        // Action button handlers
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                sendAction(action);
+            });
+        });
+
+        // Load balance on start
+        loadBalance();
+
+        // Poll for status updates (every 5 seconds)
+        setInterval(async () => {
+            try {
+                if (!userId || userId === 'undefined') {
+                    return; // Skip if no valid user ID
+                }
+                
+                const response = await fetch(`${API_BASE}/api/status/${userId}`);
+                if (!response.ok) {
+                    return; // Silently fail if status check fails
+                }
+                
+                const data = await response.json();
+                
+                if (data.notification) {
+                    showNotification(data.notification.message, data.notification.type);
+                    // Update balance if needed
+                    if (data.balance !== undefined) {
+                        document.getElementById('saldo').textContent = parseFloat(data.balance).toFixed(2);
+                    }
+                }
+            } catch (error) {
+                // Silently fail, status updates are optional
+                console.debug('Status check failed (non-critical):', error);
+            }
+        }, 5000);
+
+        // Set theme color based on Telegram
+        const colorScheme = tg.colorScheme;
+        if (colorScheme === 'dark') {
+            document.body.style.background = '#1C1C1C';
+        } else {
+            document.body.style.background = '#F5F5F5';
+            document.body.style.color = '#1C1C1C';
+        }
+    </script>
+</body>
+</html>
+
