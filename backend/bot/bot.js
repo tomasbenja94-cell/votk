@@ -198,11 +198,58 @@ bot.on('callback_query', async (ctx) => {
 // Handle photo uploads (for proof images)
 bot.on('photo', messageHandlers.handlePhoto);
 
-// Handle text messages (for flow states)
+// Handle text messages (for flow states and reply keyboard buttons)
 bot.on('text', async (ctx) => {
   // Register user message for cleanup
   const chatManager = require('./utils/chatManager');
   chatManager.registerUserMessage(ctx.from.id, ctx.message.message_id);
+  
+  const text = ctx.message.text.trim();
+  
+  // Handle reply keyboard buttons first
+  if (text === 'PAGAR') {
+    await commandHandlers.pagar(ctx);
+    return;
+  } else if (text === 'CARGAR SALDO') {
+    await commandHandlers.cargar(ctx);
+    return;
+  } else if (text === 'SALDO') {
+    await commandHandlers.saldo(ctx);
+    return;
+  } else if (text === 'HISTORIAL') {
+    await commandHandlers.historial(ctx);
+    return;
+  } else if (text === 'MENU PRINCIPAL') {
+    await commandHandlers.start(ctx);
+    return;
+  } else if (text === 'PAGAR MACRO / PLUSPAGOS') {
+    await commandHandlers.pagarMacro(ctx);
+    return;
+  } else if (text === 'PAGAR RENTAS CÓRDOBA') {
+    await commandHandlers.pagarRentas(ctx);
+    return;
+  } else if (text === 'PAGAR OTRO SERVICIO') {
+    await commandHandlers.pagarOtra(ctx);
+    return;
+  } else if (text === 'PAGAR MULTAS PBA') {
+    await commandHandlers.pagarMultas(ctx);
+    return;
+  } else if (text === 'AUTOMOTOR') {
+    await commandHandlers.pagarRentasAutomotor(ctx);
+    return;
+  } else if (text === 'INMOBILIARIO') {
+    await commandHandlers.pagarRentasInmobiliario(ctx);
+    return;
+  } else if (text === 'INGRESOS BRUTOS') {
+    await commandHandlers.pagarRentasIngresos(ctx);
+    return;
+  } else if (text === 'SELLOS') {
+    await commandHandlers.pagarRentasSellos(ctx);
+    return;
+  } else if (text === 'MULTAS DE CAMINERA') {
+    await commandHandlers.pagarRentasCaminera(ctx);
+    return;
+  }
   
   const state = require('./handlers/stateManager').getState(ctx.from.id);
   

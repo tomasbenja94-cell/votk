@@ -47,12 +47,14 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'PAGAR', callback_data: 'action_pagar' }],
-            [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }],
-            [{ text: 'SALDO', callback_data: 'action_saldo' }],
-            [{ text: 'HISTORIAL', callback_data: 'action_historial' }]
-          ]
+          keyboard: [
+            [{ text: 'PAGAR' }],
+            [{ text: 'CARGAR SALDO' }],
+            [{ text: 'SALDO' }],
+            [{ text: 'HISTORIAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -106,9 +108,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -137,9 +141,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -181,9 +187,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_multas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -205,9 +213,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_multas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -229,9 +239,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_multas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -253,9 +265,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_multas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -277,9 +291,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_multas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -308,9 +324,11 @@ const commands = {
         
         const keyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
+            keyboard: [
+              [{ text: 'MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
 
@@ -323,14 +341,16 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'AUTOMOTOR', callback_data: 'action_rentas_automotor' }],
-            [{ text: 'INMOBILIARIO', callback_data: 'action_rentas_inmobiliario' }],
-            [{ text: 'INGRESOS BRUTOS', callback_data: 'action_rentas_ingresos' }],
-            [{ text: 'SELLOS', callback_data: 'action_rentas_sellos' }],
-            [{ text: 'MULTAS DE CAMINERA', callback_data: 'action_rentas_caminera' }],
-            [{ text: 'Regresar', callback_data: 'action_pagar' }]
-          ]
+          keyboard: [
+            [{ text: 'AUTOMOTOR' }],
+            [{ text: 'INMOBILIARIO' }],
+            [{ text: 'INGRESOS BRUTOS' }],
+            [{ text: 'SELLOS' }],
+            [{ text: 'MULTAS DE CAMINERA' }],
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -359,9 +379,11 @@ const commands = {
         
         const keyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
+            keyboard: [
+              [{ text: 'MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
 
@@ -377,9 +399,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -401,9 +425,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_rentas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -425,9 +451,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_rentas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -449,9 +477,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_rentas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -473,9 +503,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_rentas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -497,9 +529,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_pagar_rentas' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -527,9 +561,11 @@ const commands = {
         
         const keyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
+            keyboard: [
+              [{ text: 'MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
 
@@ -545,9 +581,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -576,9 +614,11 @@ const commands = {
         
         const keyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
+            keyboard: [
+              [{ text: 'MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
 
@@ -591,13 +631,15 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'PAGAR MACRO / PLUSPAGOS', callback_data: 'action_pagar_macro' }],
-            [{ text: 'PAGAR RENTAS CÓRDOBA', callback_data: 'action_pagar_rentas' }],
-            [{ text: 'PAGAR OTRO SERVICIO', callback_data: 'action_pagar_otra' }],
-            [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }],
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'PAGAR MACRO / PLUSPAGOS' }],
+            [{ text: 'PAGAR RENTAS CÓRDOBA' }],
+            [{ text: 'PAGAR OTRO SERVICIO' }],
+            [{ text: 'PAGAR MULTAS PBA' }],
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -648,9 +690,11 @@ const commands = {
 
         const keyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
+            keyboard: [
+              [{ text: 'MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
 
@@ -695,9 +739,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -752,9 +798,11 @@ const commands = {
 
         const keyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
+            keyboard: [
+              [{ text: 'MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
 
@@ -831,9 +879,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -870,9 +920,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -945,9 +997,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
@@ -977,9 +1031,11 @@ const commands = {
 
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Regresar', callback_data: 'action_back' }]
-          ]
+          keyboard: [
+            [{ text: 'MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
         }
       };
 
