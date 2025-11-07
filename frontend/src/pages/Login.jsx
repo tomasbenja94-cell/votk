@@ -48,10 +48,10 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-6">Binopolis Pay</h1>
-        <h2 className="text-xl text-center text-gray-600 mb-8">Panel de Administración</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <div className="bg-white p-6 md:p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-2xl md:text-3xl font-bold text-center mb-4 md:mb-6">Binopolis Pay</h1>
+        <h2 className="text-lg md:text-xl text-center text-gray-600 mb-6 md:mb-8">Panel de Administración</h2>
         
         <form onSubmit={handleSubmit}>
           <div className="mb-4">

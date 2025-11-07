@@ -79,21 +79,21 @@ function Transactions() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Transacciones</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
+        <h1 className="text-2xl md:text-3xl font-bold">Transacciones</h1>
         <button
           onClick={fetchTransactions}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm md:text-base w-full sm:w-auto"
         >
           🔄 Actualizar
         </button>
       </div>
 
       {/* Filtros */}
-      <div className="mb-6 flex gap-2">
+      <div className="mb-4 md:mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded ${
+          className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm ${
             filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -101,7 +101,7 @@ function Transactions() {
         </button>
         <button
           onClick={() => setFilter('pendiente')}
-          className={`px-4 py-2 rounded ${
+          className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm ${
             filter === 'pendiente' ? 'bg-yellow-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -109,7 +109,7 @@ function Transactions() {
         </button>
         <button
           onClick={() => setFilter('pagado')}
-          className={`px-4 py-2 rounded ${
+          className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm ${
             filter === 'pagado' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -117,7 +117,7 @@ function Transactions() {
         </button>
         <button
           onClick={() => setFilter('cancelado')}
-          className={`px-4 py-2 rounded ${
+          className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm ${
             filter === 'cancelado' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
           }`}
         >
@@ -128,54 +128,54 @@ function Transactions() {
       {/* Tabla de transacciones */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto ARS</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto USDT</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto ARS</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto USDT</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                <th className="px-3 md:px-6 py-2 md:py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan="8" className="px-3 md:px-6 py-4 text-center text-gray-500 text-sm">
                     No hay transacciones
                   </td>
                 </tr>
               ) : (
                 transactions.map((tx) => (
                   <tr key={tx.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">{tx.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm font-medium">{tx.id}</td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm">
                       {tx.username || `ID: ${tx.telegram_id || 'N/A'}`}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{tx.type || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm">{tx.type || 'N/A'}</td>
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm">
                       {tx.amount_ars ? `$${parseFloat(tx.amount_ars).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm">
                       {tx.amount_usdt ? `${parseFloat(tx.amount_usdt).toFixed(2)} USDT` : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs rounded ${getStatusColor(tx.status)}`}>
                         {tx.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm">
                       {formatDate(tx.created_at)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-xs md:text-sm">
                       {tx.status !== 'cancelado' && tx.status !== 'pagado' && (
                         <button
                           onClick={() => handleCancel(tx.id)}
                           disabled={cancellingId === tx.id}
-                          className={`px-3 py-1 rounded text-sm ${
+                          className={`px-2 md:px-3 py-1 rounded text-xs md:text-sm ${
                             cancellingId === tx.id
                               ? 'bg-gray-400 text-white cursor-not-allowed'
                               : 'bg-red-600 text-white hover:bg-red-700'
@@ -199,7 +199,7 @@ function Transactions() {
       </div>
 
       {/* Resumen */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="mt-4 md:mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="text-sm text-gray-600">Total</div>
           <div className="text-2xl font-bold">{transactions.length}</div>
