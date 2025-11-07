@@ -25,13 +25,16 @@ async function update(req, res) {
       return res.status(500).json({ error: 'Failed to update message' });
     }
 
+    // Clear cache to ensure changes take effect immediately
+    messageService.clearCache();
+
     await auditLogger.log(
       req.user.username,
       'update_bot_message',
       { key }
     );
 
-    res.json({ message: 'Message updated successfully' });
+    res.json({ message: 'Message updated successfully. Changes will take effect immediately.' });
   } catch (error) {
     console.error('Update message error:', error);
     res.status(500).json({ error: 'Internal server error' });

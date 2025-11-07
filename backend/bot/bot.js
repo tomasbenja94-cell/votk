@@ -6,6 +6,42 @@ require('dotenv').config();
 const bot = new Telegraf(process.env.BOT_TOKEN || config.bot_token);
 const chatManager = require('./utils/chatManager');
 
+// Middleware para verificar baneos
+bot.use(async (ctx, next) => {
+  if (ctx.from && ctx.from.id) {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM banned_users 
+         WHERE telegram_id = $1 
+         AND banned_until > NOW()`,
+        [ctx.from.id.toString()]
+      );
+
+      if (result.rows.length > 0) {
+        const ban = result.rows[0];
+        const bannedUntil = new Date(ban.banned_until);
+        const now = new Date();
+        const minutesLeft = Math.ceil((bannedUntil - now) / (1000 * 60));
+        
+        await ctx.reply(
+          `🚫 *Estás baneado*\n\n` +
+          `Razón: ${ban.reason || 'Pago falso detectado'}\n` +
+          `Baneado por: ${ban.banned_by_username || 'Administrador'}\n` +
+          `Tiempo restante: ${minutesLeft} minutos\n\n` +
+          `No podrás usar el bot hasta que expire el baneo.`,
+          { parse_mode: 'Markdown' }
+        );
+        return; // Stop processing
+      }
+    } catch (error) {
+      console.error('Error checking ban:', error);
+      // Continue if there's an error checking ban
+    }
+  }
+  
+  await next();
+});
+
 // Middleware para registrar automáticamente todos los mensajes del bot
 bot.use(async (ctx, next) => {
   // Guardar el método original de reply
@@ -77,6 +113,7 @@ bot.command('comandos', commandHandlers.comandos);
 bot.command('comandosgrupo', commandHandlers.comandosgrupo);
 bot.command('comandosop', commandHandlers.comandosop);
 bot.command('politicas', commandHandlers.politicas);
+bot.command('banear', adminHandlers.banear);
 
 // Register callbacks
 bot.on('callback_query', async (ctx) => {

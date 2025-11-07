@@ -24,11 +24,15 @@ function Config() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await configAPI.update(config);
-      alert('Configuración guardada exitosamente');
+      const response = await configAPI.update(config);
+      if (response.data.requiresRestart) {
+        alert('✅ Configuración guardada exitosamente.\n\n⚠️ IMPORTANTE: El bot token ha sido actualizado. Debes reiniciar el bot para que los cambios surtan efecto.\n\nEn el servidor ejecuta: pm2 restart bot-backend');
+      } else {
+        alert('✅ Configuración guardada exitosamente');
+      }
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Error al guardar configuración');
+      alert('❌ Error al guardar configuración: ' + (error.response?.data?.error || error.message));
     } finally {
       setSaving(false);
     }

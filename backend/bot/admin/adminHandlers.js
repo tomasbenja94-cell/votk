@@ -2317,6 +2317,112 @@ const handlers = {
       console.error('Error in /bep20:', error);
       await ctx.reply('❌ Error al ejecutar el comando.');
     }
+  },
+
+  async banear(ctx) {
+    try {
+      // Verificar que el usuario es admin
+      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+      if (!isUserAdmin) {
+        await ctx.reply('❌ Solo los administradores pueden usar este comando.');
+        return;
+      }
+
+      const messageText = ctx.message.text || '';
+      const parts = messageText.split(' ').filter(p => p.length > 0);
+
+      // Formato: /banear @usuario 30
+      if (parts.length < 3) {
+        await ctx.reply(
+          '❌ Uso incorrecto.\n\n' +
+          'Formato: `/banear @usuario <minutos>`\n\n' +
+          'Ejemplo: `/banear @usuario 30`\n\n' +
+          'Esto baneará al usuario por 30 minutos.',
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      const username = parts[1].replace('@', '');
+      const minutes = parseInt(parts[2]);
+
+      if (isNaN(minutes) || minutes <= 0) {
+        await ctx.reply('❌ El tiempo debe ser un número positivo de minutos.');
+        return;
+      }
+
+      // Buscar usuario por username
+      const userResult = await pool.query(
+        'SELECT * FROM users WHERE LOWER(username) = LOWER($1)',
+        [username]
+      );
+
+      if (userResult.rows.length === 0) {
+        await ctx.reply(`❌ Usuario @${username} no encontrado en la base de datos.`);
+        return;
+      }
+
+      const user = userResult.rows[0];
+      const telegramId = user.telegram_id;
+
+      // Calcular fecha de desbaneo
+      const bannedUntil = new Date();
+      bannedUntil.setMinutes(bannedUntil.getMinutes() + minutes);
+
+      // Insertar o actualizar ban
+      await pool.query(
+        `INSERT INTO banned_users (telegram_id, username, banned_by, banned_by_username, reason, banned_until)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (telegram_id) 
+         DO UPDATE SET 
+           username = $2,
+           banned_by = $3,
+           banned_by_username = $4,
+           reason = $5,
+           banned_until = $6,
+           created_at = NOW()`,
+        [
+          telegramId.toString(),
+          `@${username}`,
+          ctx.from.id.toString(),
+          ctx.from.username ? `@${ctx.from.username}` : `user_${ctx.from.id}`,
+          'Pago falso detectado',
+          bannedUntil
+        ]
+      );
+
+      // Notificar al usuario baneado
+      try {
+        await ctx.telegram.sendMessage(
+          telegramId,
+          `🚫 *Has sido baneado*\n\n` +
+          `Razón: Pago falso detectado\n` +
+          `Baneado por: ${ctx.from.username ? `@${ctx.from.username}` : 'Administrador'}\n` +
+          `Duración: ${minutes} minutos\n` +
+          `Desbaneo: ${bannedUntil.toLocaleString('es-AR')}\n\n` +
+          `No podrás usar el bot hasta que expire el baneo.`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (error) {
+        console.error('Error notifying banned user:', error);
+        // Continue anyway
+      }
+
+      await ctx.reply(
+        `✅ Usuario @${username} baneado por ${minutes} minutos.\n\n` +
+        `Desbaneo: ${bannedUntil.toLocaleString('es-AR')}`
+      );
+
+      // Log audit
+      await auditLogger.log(
+        ctx.from.username || `user_${ctx.from.id}`,
+        'ban_user',
+        { bannedUser: username, minutes, telegramId }
+      );
+    } catch (error) {
+      console.error('Error in /banear:', error);
+      await ctx.reply('❌ Error al banear usuario.');
+    }
   }
 };
 

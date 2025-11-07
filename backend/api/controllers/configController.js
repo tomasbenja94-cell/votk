@@ -27,8 +27,14 @@ async function get(req, res) {
 async function update(req, res) {
   try {
     const config = req.body;
+    let requiresRestart = false;
 
     for (const [key, value] of Object.entries(config)) {
+      // Check if bot_token is being updated
+      if (key === 'bot_token') {
+        requiresRestart = true;
+      }
+
       await pool.query(
         `INSERT INTO config (key, value, updated_at) 
          VALUES ($1, $2, NOW()) 
@@ -44,7 +50,12 @@ async function update(req, res) {
       { keys: Object.keys(config) }
     );
 
-    res.json({ message: 'Config updated successfully' });
+    let message = 'Config updated successfully';
+    if (requiresRestart) {
+      message += '. ⚠️ IMPORTANTE: El bot token ha sido actualizado. Debes reiniciar el bot para que los cambios surtan efecto.';
+    }
+
+    res.json({ message, requiresRestart });
   } catch (error) {
     console.error('Update config error:', error);
     res.status(500).json({ error: 'Internal server error' });
