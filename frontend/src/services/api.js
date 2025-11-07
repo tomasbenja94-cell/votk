@@ -1,6 +1,26 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Detectar automáticamente la URL de la API
+// Si estamos en producción (no localhost), usar la misma URL pero con puerto 3001
+// Si hay un proxy (nginx), usar rutas relativas
+const getApiUrl = () => {
+  // Si hay una variable de entorno, usarla
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Si estamos en localhost, usar localhost:3001
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001';
+  }
+  
+  // En producción, usar la misma URL pero con puerto 3001
+  // O si hay nginx, usar rutas relativas (solo /api)
+  const hostname = window.location.hostname;
+  return `http://${hostname}:3001`;
+};
+
+const API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,
