@@ -1272,12 +1272,17 @@ const handlers = {
   },
 
   async handlePagoConfirm(ctx) {
+    let answered = false;
     try {
+      // Answer callback query immediately to prevent timeout
+      await ctx.answerCbQuery('⏳ Procesando...');
+      answered = true;
+      
       const data = ctx.callbackQuery.data;
       const transactionId = parseInt(data.split('_')[2]);
       
       if (isNaN(transactionId)) {
-        await ctx.answerCbQuery('❌ ID de transacción inválido', true);
+        await ctx.reply('❌ ID de transacción inválido');
         return;
       }
 
@@ -1299,7 +1304,7 @@ const handlers = {
 
       // Check if already processed - prevent multiple confirmations
       if (transaction.status === 'pagado') {
-        await ctx.answerCbQuery('⚠️ Esta transacción ya fue pagada', true);
+        await ctx.reply('⚠️ Esta transacción ya fue pagada');
         // Try to delete the message if it still exists
         try {
           await ctx.deleteMessage();
@@ -1310,7 +1315,7 @@ const handlers = {
       }
 
       if (transaction.status === 'cancelado') {
-        await ctx.answerCbQuery('❌ Esta transacción fue cancelada', true);
+        await ctx.reply('❌ Esta transacción fue cancelada');
         // Try to delete the message if it still exists
         try {
           await ctx.deleteMessage();
@@ -1340,13 +1345,13 @@ const handlers = {
         
         if (lockedTx.rows.length === 0) {
           await client.query('ROLLBACK');
-          await ctx.answerCbQuery('❌ Transacción no encontrada', true);
+          await ctx.reply('❌ Transacción no encontrada');
           return;
         }
         
         if (lockedTx.rows[0].status === 'pagado' || lockedTx.rows[0].status === 'cancelado') {
           await client.query('ROLLBACK');
-          await ctx.answerCbQuery('⚠️ Esta transacción ya fue procesada', true);
+          await ctx.reply('⚠️ Esta transacción ya fue procesada');
           try {
             await ctx.deleteMessage();
           } catch (deleteError) {
@@ -1390,7 +1395,7 @@ const handlers = {
       
       if (txDetailsAfter.rows.length === 0) {
         console.error('❌ Transaction not found after update!');
-        await ctx.answerCbQuery('❌ Error: Transacción no encontrada después de actualizar', true);
+        await ctx.reply('❌ Error: Transacción no encontrada después de actualizar');
         return;
       }
       
@@ -1411,7 +1416,7 @@ const handlers = {
       
       if (txForMessage.rows.length === 0) {
         console.error('❌ Transaction not found after update!');
-        await ctx.answerCbQuery('❌ Error: Transacción no encontrada', true);
+        await ctx.reply('❌ Error: Transacción no encontrada');
         return;
       }
       
@@ -1627,13 +1632,17 @@ const handlers = {
         }
       }
 
-      await ctx.answerCbQuery('✅ Pago confirmado');
+      await ctx.reply('✅ Pago confirmado exitosamente');
     } catch (error) {
       console.error('❌❌❌ CRITICAL ERROR in handlePagoConfirm:', error);
       console.error('Error stack:', error.stack);
       console.error('Error details:', JSON.stringify(error, null, 2));
       try {
-        await ctx.answerCbQuery('❌ Error al confirmar pago', true);
+        if (!answered) {
+          await ctx.answerCbQuery('❌ Error al confirmar pago', true);
+        } else {
+          await ctx.reply('❌ Error al confirmar pago: ' + error.message);
+        }
       } catch (answerError) {
         console.error('Could not answer callback query:', answerError);
       }
@@ -1641,12 +1650,17 @@ const handlers = {
   },
 
   async handlePagoCancel(ctx) {
+    let answered = false;
     try {
+      // Answer callback query immediately to prevent timeout
+      await ctx.answerCbQuery('⏳ Procesando...');
+      answered = true;
+      
       const data = ctx.callbackQuery.data;
       const transactionId = parseInt(data.split('_')[2]);
       
       if (isNaN(transactionId)) {
-        await ctx.answerCbQuery('❌ ID de transacción inválido', true);
+        await ctx.reply('❌ ID de transacción inválido');
         return;
       }
 
@@ -1656,7 +1670,7 @@ const handlers = {
       );
 
       if (transactionResult.rows.length === 0) {
-        await ctx.answerCbQuery('❌ Transacción no encontrada', true);
+        await ctx.reply('❌ Transacción no encontrada');
         return;
       }
 
@@ -1664,7 +1678,7 @@ const handlers = {
 
       // Check if already processed - prevent multiple cancellations
       if (transaction.status === 'cancelado') {
-        await ctx.answerCbQuery('⚠️ Esta transacción ya fue cancelada', true);
+        await ctx.reply('⚠️ Esta transacción ya fue cancelada');
         // Try to delete the message if it still exists
         try {
           await ctx.deleteMessage();
@@ -1675,7 +1689,7 @@ const handlers = {
       }
 
       if (transaction.status === 'pagado') {
-        await ctx.answerCbQuery('❌ No se puede cancelar un pago ya confirmado', true);
+        await ctx.reply('❌ No se puede cancelar un pago ya confirmado');
         // Try to delete the message if it still exists
         try {
           await ctx.deleteMessage();
@@ -1698,7 +1712,7 @@ const handlers = {
         
         if (lockedTx.rows.length === 0) {
           await client.query('ROLLBACK');
-          await ctx.answerCbQuery('❌ Transacción no encontrada', true);
+          await ctx.reply('❌ Transacción no encontrada');
           return;
         }
         
@@ -1706,7 +1720,7 @@ const handlers = {
         
         if (lockedTransaction.status === 'pagado' || lockedTransaction.status === 'cancelado') {
           await client.query('ROLLBACK');
-          await ctx.answerCbQuery('⚠️ Esta transacción ya fue procesada', true);
+          await ctx.reply('⚠️ Esta transacción ya fue procesada');
           try {
             await ctx.deleteMessage();
           } catch (deleteError) {
@@ -1785,7 +1799,7 @@ const handlers = {
         }
       }
 
-      await ctx.answerCbQuery('✅ Pago cancelado');
+      await ctx.reply('✅ Pago cancelado exitosamente');
 
       // Notify user
       if (user) {
@@ -1808,7 +1822,11 @@ const handlers = {
       console.error('Error stack:', error.stack);
       console.error('Error details:', JSON.stringify(error, null, 2));
       try {
-        await ctx.answerCbQuery('❌ Error al cancelar pago', true);
+        if (!answered) {
+          await ctx.answerCbQuery('❌ Error al cancelar pago', true);
+        } else {
+          await ctx.reply('❌ Error al cancelar pago: ' + error.message);
+        }
       } catch (answerError) {
         console.error('Could not answer callback query:', answerError);
       }
