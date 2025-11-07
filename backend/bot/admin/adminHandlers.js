@@ -1811,14 +1811,23 @@ const handlers = {
 
   async handleAdminActas(ctx, actasText) {
     try {
+      console.log('📝 handleAdminActas called with text:', actasText?.substring(0, 100));
+      
+      if (!actasText || actasText.trim().length === 0) {
+        await ctx.reply('❌ El texto no puede estar vacío. Por favor, ingresa el texto de las actas.');
+        return;
+      }
+      
       const data = stateManager.getData(ctx.from.id);
-      const transactionId = data.transactionId;
+      const transactionId = data?.transactionId;
 
       if (!transactionId) {
         await ctx.reply('❌ No se encontró transacción.');
         stateManager.clearState(ctx.from.id);
         return;
       }
+      
+      console.log('📝 Processing actas for transaction:', transactionId);
 
       // Get transaction with user info
       const transactionResult = await pool.query(
