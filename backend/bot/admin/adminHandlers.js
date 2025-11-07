@@ -1452,25 +1452,34 @@ const handlers = {
           console.error('Error sending PAGADO message:', error);
         }
       } else {
-        // For non-multas or direct payments (Macro, Otra, Rentas), delete the message
+        // For non-multas or direct payments (Macro, Otra, Rentas), edit the message to show PAGADO status
         try {
-          await ctx.deleteMessage();
-          console.log(`✅ Mensaje de orden ${transactionId} eliminado del grupo después de ser marcado como PAGADO`);
-        } catch (deleteError) {
-          // If message was already deleted, that's okay
-          if (deleteError.response?.error_code !== 400 && deleteError.response?.error_code !== 404) {
-            console.log('Error deleting message:', deleteError.message);
-            // Fallback: try to edit the message
+          const originalText = ctx.callbackQuery.message.text || ctx.callbackQuery.message.caption || '';
+          const formatARS = require('../../utils/helpers').formatARS;
+          const montoFormateado = txBefore.amount_ars ? formatARS(txBefore.amount_ars) : '';
+          
+          // Edit message to show PAGADO status
+          const pagadoText = originalText.replace(/Estado:.*/i, `Estado: ✅ PAGADO por @${ctx.from.username || 'admin'}`);
+          
+          try {
+            await ctx.editMessageText(
+              pagadoText + '\n\n✅ *Pagado por @' + (ctx.from.username || 'admin') + '*',
+              { parse_mode: 'Markdown' }
+            );
+          } catch (editTextError) {
+            // If it's a photo message, try editing caption
             try {
-              const originalText = ctx.callbackQuery.message.text || '';
-              await ctx.editMessageText(
-                originalText + '\n\n✅ *Pagado*',
+              await ctx.editMessageCaption(
+                pagadoText + '\n\n✅ *Pagado por @' + (ctx.from.username || 'admin') + '*',
                 { parse_mode: 'Markdown' }
               );
-            } catch (editError) {
-              console.log('Message already deleted or cannot be edited:', editError.message);
+            } catch (editCaptionError) {
+              console.log('Could not edit message text or caption:', editCaptionError.message);
             }
           }
+          console.log(`✅ Mensaje de orden ${transactionId} marcado como PAGADO en el grupo`);
+        } catch (error) {
+          console.error('Error editing message to show PAGADO:', error);
         }
       }
 
@@ -1526,11 +1535,63 @@ const handlers = {
               finalMessage,
               { parse_mode: 'Markdown' }
             );
+          } else {
+            // If we don't have the user message info, send a new notification
+            const montoFormateado = txForMessage.rows[0].amount_ars ? formatARS(txForMessage.rows[0].amount_ars) : '';
+            const notificationMessage = `✅ *Pago confirmado*\n\n` +
+              `Tu pago ha sido procesado exitosamente.\n\n` +
+              `MONTO PAGADO: ${montoFormateado}\n` +
+              `COBRADO: ${txForMessage.rows[0].amount_usdt.toFixed(0)} USDT\n\n` +
+              `Operacion guardada en /movimientos.`;
+            
+            try {
+              await bot.telegram.sendMessage(
+                transaction.telegram_id,
+                notificationMessage,
+                { parse_mode: 'Markdown' }
+              );
+            } catch (notifyError) {
+              console.error('Error sending notification to user:', notifyError);
+            }
+          }
+        } else {
+          // If no proof_image, send notification anyway
+          const montoFormateado = txForMessage.rows[0].amount_ars ? formatARS(txForMessage.rows[0].amount_ars) : '';
+          const notificationMessage = `✅ *Pago confirmado*\n\n` +
+            `Tu pago ha sido procesado exitosamente.\n\n` +
+            `MONTO PAGADO: ${montoFormateado}\n` +
+            `COBRADO: ${txForMessage.rows[0].amount_usdt.toFixed(0)} USDT\n\n` +
+            `Operacion guardada en /movimientos.`;
+          
+          try {
+            await bot.telegram.sendMessage(
+              transaction.telegram_id,
+              notificationMessage,
+              { parse_mode: 'Markdown' }
+            );
+          } catch (notifyError) {
+            console.error('Error sending notification to user:', notifyError);
           }
         }
       } catch (messageError) {
         console.error('Error updating user message with progress:', messageError);
-        // No fallback notification - the progress bar is the only notification
+        // Fallback: send notification anyway
+        try {
+          const montoFormateado = txBefore.amount_ars ? formatARS(txBefore.amount_ars) : '';
+          const notificationMessage = `✅ *Pago confirmado*\n\n` +
+            `Tu pago ha sido procesado exitosamente.\n\n` +
+            `MONTO PAGADO: ${montoFormateado}\n` +
+            `COBRADO: ${txBefore.amount_usdt.toFixed(0)} USDT\n\n` +
+            `Operacion guardada en /movimientos.`;
+          
+          await bot.telegram.sendMessage(
+            transaction.telegram_id,
+            notificationMessage,
+            { parse_mode: 'Markdown' }
+          );
+        } catch (notifyError) {
+          console.error('Error sending fallback notification:', notifyError);
+        }
       }
 
       await ctx.answerCbQuery('✅ Pago confirmado');
