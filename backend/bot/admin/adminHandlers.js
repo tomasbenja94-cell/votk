@@ -1481,16 +1481,17 @@ const handlers = {
         }
       }
 
-      // Find and update user's "Orden enviada" message with progress bar, then delete and send new message
+      // ALWAYS send confirmation message to client
       const bot = require('../bot').bot;
       const formatARS = require('../../utils/helpers').formatARS;
       const animationManager = require('../utils/animations');
-      const commandHandlers = require('../commands');
+      
+      console.log(`[DEBUG handlePagoConfirm] Sending confirmation to user ${transaction.telegram_id} for transaction ${transactionId}`);
       
       try {
         // Get transaction to find user message info and determine service name
         const txForMessage = await pool.query(
-          'SELECT proof_image, amount_ars, amount_usdt, identifier FROM transactions WHERE id = $1',
+          'SELECT proof_image, amount_ars, amount_usdt, identifier, type FROM transactions WHERE id = $1',
           [transactionId]
         );
         
@@ -1504,13 +1505,13 @@ const handlers = {
             nombreServicio = servicioMatch[1].trim();
           } else {
             // Determine from message type
-            if (adminMessageText.includes('Macro/PlusPagos')) {
+            if (adminMessageText.includes('Macro/PlusPagos') || adminMessageText.includes('MACRO / PLUSPAGOS')) {
               nombreServicio = 'Macro/PlusPagos';
-            } else if (adminMessageText.includes('Rentas Córdoba')) {
+            } else if (adminMessageText.includes('Rentas Córdoba') || adminMessageText.includes('RENTAS CÓRDOBA')) {
               nombreServicio = 'Rentas Córdoba';
             } else if (adminMessageText.includes('PAGAR OTRO SERVICIO')) {
               nombreServicio = 'Otro Servicio';
-            } else if (adminMessageText.includes('Multa')) {
+            } else if (adminMessageText.includes('Multa') || adminMessageText.includes('MULTA')) {
               nombreServicio = 'Multa';
             }
           }
@@ -1518,6 +1519,7 @@ const handlers = {
           console.log('Could not extract service name, using default');
         }
         
+        // Try to update/delete user's "Orden enviada" message if it exists
         if (txForMessage.rows.length > 0 && txForMessage.rows[0].proof_image) {
           const proofImage = txForMessage.rows[0].proof_image;
           // Format: user_message|chat_id|message_id or user_message|chat_id|message_id|admin_group|...
@@ -1533,25 +1535,26 @@ const handlers = {
           }
           
           if (userChatId && userMessageId) {
-            // Show progress bar that reaches 100%
-            await animationManager.showProgress(
-              { telegram: bot.telegram, chat: { id: userChatId } },
-              userMessageId,
-              '✅ Orden enviada\n\nTu pago ha sido recibido.\nTe notificaremos cuando sea procesado.',
-              2000,
-              20 // 20 steps for smoother animation
-            );
-            
-            // Delete the "Orden enviada" message
             try {
+              // Show progress bar that reaches 100%
+              await animationManager.showProgress(
+                { telegram: bot.telegram, chat: { id: userChatId } },
+                userMessageId,
+                '✅ Orden enviada\n\nTu pago ha sido recibido.\nTe notificaremos cuando sea procesado.',
+                2000,
+                20 // 20 steps for smoother animation
+              );
+              
+              // Delete the "Orden enviada" message
               await bot.telegram.deleteMessage(userChatId, userMessageId);
+              console.log(`✅ Deleted user message ${userMessageId} for transaction ${transactionId}`);
             } catch (deleteError) {
               console.log('Could not delete user message:', deleteError.message);
             }
           }
         }
         
-        // Send new confirmation message with all details
+        // ALWAYS send new confirmation message with all details
         const montoFormateado = txForMessage.rows[0]?.amount_ars ? formatARS(txForMessage.rows[0].amount_ars) : '';
         const fechaHora = new Date().toLocaleString('es-AR', { 
           timeZone: 'America/Argentina/Buenos_Aires',
@@ -1572,30 +1575,33 @@ const handlers = {
         
         const menuKeyboard = {
           reply_markup: {
-            inline_keyboard: [
-              [{ text: 'MENU', callback_data: 'pago_completado_menu' }]
-            ]
+            keyboard: [
+              [{ text: '🏠 MENU PRINCIPAL' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: false
           }
         };
         
-        try {
-          const sentMessage = await bot.telegram.sendMessage(
-            transaction.telegram_id,
-            finalMessage,
-            { parse_mode: 'Markdown', reply_markup: menuKeyboard.reply_markup }
-          );
-          
-          // Save this message ID to delete it when MENU is pressed
-          await pool.query(
-            'UPDATE transactions SET proof_image = $1 WHERE id = $2',
-            [`pago_completado_message|${transaction.telegram_id}|${sentMessage.message_id}`, transactionId]
-          );
-        } catch (sendError) {
-          console.error('Error sending confirmation message:', sendError);
-        }
+        console.log(`[DEBUG handlePagoConfirm] Attempting to send message to ${transaction.telegram_id}`);
+        const sentMessage = await bot.telegram.sendMessage(
+          transaction.telegram_id,
+          finalMessage,
+          { parse_mode: 'Markdown', reply_markup: menuKeyboard.reply_markup }
+        );
+        
+        console.log(`✅ Confirmation message sent to user ${transaction.telegram_id}, message_id: ${sentMessage.message_id}`);
+        
+        // Save this message ID to delete it when MENU is pressed
+        await pool.query(
+          'UPDATE transactions SET proof_image = $1 WHERE id = $2',
+          [`pago_completado_message|${transaction.telegram_id}|${sentMessage.message_id}`, transactionId]
+        );
       } catch (messageError) {
-        console.error('Error updating user message with progress:', messageError);
-        // Fallback: send notification anyway
+        console.error('❌ Error sending confirmation message to user:', messageError);
+        console.error('Error stack:', messageError.stack);
+        
+        // Fallback: try to send a simpler message
         try {
           const montoFormateado = txBefore.amount_ars ? formatARS(txBefore.amount_ars) : '';
           const fechaHora = new Date().toLocaleString('es-AR', { 
@@ -1617,9 +1623,11 @@ const handlers = {
           
           const menuKeyboard = {
             reply_markup: {
-              inline_keyboard: [
-                [{ text: 'MENU', callback_data: 'pago_completado_menu' }]
-              ]
+              keyboard: [
+                [{ text: '🏠 MENU PRINCIPAL' }]
+              ],
+              resize_keyboard: true,
+              one_time_keyboard: false
             }
           };
           
@@ -1628,8 +1636,10 @@ const handlers = {
             finalMessage,
             { parse_mode: 'Markdown', reply_markup: menuKeyboard.reply_markup }
           );
+          console.log(`✅ Fallback confirmation message sent to user ${transaction.telegram_id}`);
         } catch (notifyError) {
-          console.error('Error sending fallback notification:', notifyError);
+          console.error('❌ Error sending fallback notification:', notifyError);
+          console.error('Fallback error stack:', notifyError.stack);
         }
       }
 
