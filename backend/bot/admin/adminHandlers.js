@@ -1888,16 +1888,25 @@ const handlers = {
           }
         }
         
-        // Send actas text to client FIRST
+        // Send actas text to client FIRST (without parse_mode to avoid formatting issues)
         try {
           await botInstance.telegram.sendMessage(
             transaction.telegram_id,
-            actasText,
-            { parse_mode: 'Markdown' }
+            actasText
           );
+          console.log(`✅ Actas text sent to user ${transaction.telegram_id}:`, actasText.substring(0, 50) + '...');
         } catch (sendError) {
           console.error('Error sending actas text:', sendError);
-          throw sendError;
+          // Try without parse_mode if Markdown fails
+          try {
+            await botInstance.telegram.sendMessage(
+              transaction.telegram_id,
+              actasText
+            );
+          } catch (retryError) {
+            console.error('Error sending actas text (retry):', retryError);
+            throw retryError;
+          }
         }
         
         // Get service name from transaction or admin message
