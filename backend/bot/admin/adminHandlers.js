@@ -1293,6 +1293,9 @@ const handlers = {
       }
 
       const transaction = transactionResult.rows[0];
+      
+      // Save original status before update
+      const originalStatus = transaction.status;
 
       // Check if already processed - prevent multiple confirmations
       if (transaction.status === 'pagado') {
@@ -1315,23 +1318,6 @@ const handlers = {
           // Message already deleted or doesn't exist, that's okay
         }
         return;
-      }
-
-      // For multas, only allow if status is 'admitido'
-      if (transaction.type === 'pago') {
-        // Get transaction details to check if it's multas
-        const transactionDetails = await pool.query(
-          'SELECT * FROM transactions WHERE id = $1',
-          [transactionId]
-        );
-        const tx = transactionDetails.rows[0];
-        
-        // Check if it's a multas payment (would need to check identifier or other field)
-        // For now, we'll check if status is 'admitido' or 'procesando'
-        if (tx.status === 'procesando' && tx.amount_ars) {
-          // Likely a multas payment, check if it was admitted first
-          // Actually, we'll allow direct confirmation for non-multas
-        }
       }
 
       // Get admin ID from admins table
@@ -1534,8 +1520,8 @@ const handlers = {
       }
       
       // Now handle admin group message updates (non-blocking)
-      // Check if it was admitted before marking as paid
-      const wasAdmittedBefore = txAfter.status === 'admitido' || (txAfter.status === 'pagado' && txAfter.amount_ars);
+      // Check if it was admitted before marking as paid (use originalStatus)
+      const wasAdmittedBefore = originalStatus === 'admitido';
       
       // For multas payments that were admitted, delete the message and show as PAGADO
       if (wasAdmittedBefore && txAfter.amount_ars) {
