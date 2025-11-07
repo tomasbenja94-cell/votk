@@ -891,6 +891,145 @@ const commands = {
       const errorMsg = await messageService.getMessage('error_generic');
       await ctx.reply(errorMsg || '❌ Error al consultar movimientos');
     }
+  },
+
+  async comandos(ctx) {
+    try {
+      const message = `*📋 COMANDOS DEL BOT*\n\n` +
+        `*Comandos principales:*\n` +
+        `/start - Muestra el menú principal\n` +
+        `/pagar - Iniciar un pago\n` +
+        `/cargar - Cargar saldo a tu cuenta\n` +
+        `/saldo - Ver tu saldo disponible\n` +
+        `/movimientos - Ver tu historial de transacciones\n` +
+        `/comandos - Ver esta lista de comandos\n` +
+        `/politicas - Ver las políticas del servicio\n\n` +
+        `*Opciones disponibles:*\n` +
+        `• PAGAR: Multas, Macro/PlusPagos, Rentas Córdoba, Otro Servicio\n` +
+        `• CARGAR SALDO: Recarga tu cuenta con USDT\n` +
+        `• SALDO: Consulta tu saldo actual\n` +
+        `• HISTORIAL: Revisa todas tus transacciones`;
+
+      const keyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Regresar', callback_data: 'action_back' }]
+          ]
+        }
+      };
+
+      await ctx.replyWithMarkdown(message, keyboard);
+    } catch (error) {
+      console.error('Error in /comandos:', error);
+      await ctx.reply('❌ Error al mostrar comandos');
+    }
+  },
+
+  async comandosgrupo(ctx) {
+    try {
+      const { isAdmin } = require('../../utils/helpers');
+      
+      // Verificar que es admin
+      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+      if (!isUserAdmin) {
+        await ctx.reply('❌ Solo administradores pueden usar este comando.');
+        return;
+      }
+
+      // Verificar que está en un grupo
+      if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') {
+        await ctx.reply('❌ Este comando solo puede usarse en grupos.');
+        return;
+      }
+
+      const message = `*📋 COMANDOS DEL BOT EN GRUPOS*\n\n` +
+        `*Solo para administradores:*\n\n` +
+        `/trc20 - Muestra el enlace de Tronscan para transacciones TRC20\n` +
+        `/bep20 - Muestra el enlace de BSCScan para transacciones BEP20\n` +
+        `/comandosgrupo - Ver esta lista de comandos de grupo\n` +
+        `/comandosop - Ver comandos de administración\n\n` +
+        `*Nota:* Estos comandos solo funcionan en grupos de administración configurados.`;
+
+      await ctx.replyWithMarkdown(message);
+    } catch (error) {
+      console.error('Error in /comandosgrupo:', error);
+      await ctx.reply('❌ Error al mostrar comandos de grupo');
+    }
+  },
+
+  async comandosop(ctx) {
+    try {
+      const { isAdmin } = require('../../utils/helpers');
+      
+      // Verificar que es admin
+      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+      if (!isUserAdmin) {
+        await ctx.reply('❌ Solo administradores pueden usar este comando.');
+        return;
+      }
+
+      const message = `*⚙️ COMANDOS DE ADMINISTRACIÓN*\n\n` +
+        `*Comandos de administración:*\n\n` +
+        `/admin - Acceder al panel de administración\n` +
+        `/cancelar <ID> <motivo> - Cancelar una transacción\n` +
+        `/wallet - Ver wallets configuradas\n` +
+        `/logs - Ver logs del sistema\n` +
+        `/config - Ver configuración del bot\n` +
+        `/setgroupchatid - Configurar chat_id de un grupo\n` +
+        `/eliminarsaldo <telegram_id> <monto> - Eliminar saldo de un usuario\n` +
+        `/trc20 - Enlace de Tronscan (solo en grupos)\n` +
+        `/bep20 - Enlace de BSCScan (solo en grupos)\n` +
+        `/comandosop - Ver esta lista\n\n` +
+        `*Acciones desde mensajes:*\n` +
+        `• Botones "Pagado" / "Cancelar" en órdenes de pago\n` +
+        `• Botones "Acreditar saldo" / "Rechazar" en comprobantes\n` +
+        `• Botones "Admitir" / "Rechazar" en órdenes de multas`;
+
+      const keyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Regresar', callback_data: 'action_back' }]
+          ]
+        }
+      };
+
+      await ctx.replyWithMarkdown(message, keyboard);
+    } catch (error) {
+      console.error('Error in /comandosop:', error);
+      await ctx.reply('❌ Error al mostrar comandos de administración');
+    }
+  },
+
+  async politicas(ctx) {
+    try {
+      const message = `*📜 POLÍTICAS DEL SERVICIO*\n\n` +
+        `*Importante sobre el saldo:*\n\n` +
+        `El saldo cargado en el bot *NO se reembolsa realmente*.\n\n` +
+        `Cuando cargas saldo a tu cuenta:\n` +
+        `• El saldo queda registrado como saldo interno en el bot\n` +
+        `• Puedes usarlo para realizar pagos\n` +
+        `• No se puede retirar o convertir de vuelta a USDT\n` +
+        `• El saldo es de uso exclusivo dentro del bot\n\n` +
+        `*Términos de uso:*\n` +
+        `• Los pagos procesados no son reembolsables\n` +
+        `• El saldo cargado es definitivo\n` +
+        `• Asegúrate de cargar solo el monto que necesitas\n\n` +
+        `*Contacto:*\n` +
+        `Para consultas, contacta a los administradores del servicio.`;
+
+      const keyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Regresar', callback_data: 'action_back' }]
+          ]
+        }
+      };
+
+      await ctx.replyWithMarkdown(message, keyboard);
+    } catch (error) {
+      console.error('Error in /politicas:', error);
+      await ctx.reply('❌ Error al mostrar políticas');
+    }
   }
 };
 

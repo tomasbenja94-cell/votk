@@ -73,6 +73,10 @@ bot.command('setgroupchatid', adminHandlers.setGroupChatId);
 bot.command('eliminarsaldo', adminHandlers.eliminarSaldo);
 bot.command('trc20', adminHandlers.trc20);
 bot.command('bep20', adminHandlers.bep20);
+bot.command('comandos', commandHandlers.comandos);
+bot.command('comandosgrupo', commandHandlers.comandosgrupo);
+bot.command('comandosop', commandHandlers.comandosop);
+bot.command('politicas', commandHandlers.politicas);
 
 // Register callbacks
 bot.on('callback_query', async (ctx) => {
