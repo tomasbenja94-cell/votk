@@ -40,10 +40,14 @@ const commands = {
         throw new Error(`Error al registrar usuario: ${userError.message}`);
       }
       
-      // Get welcome message from database
-      const welcomeMessage = await messageService.getMessage('welcome', {
-        first_name: ctx.from.first_name || 'Usuario'
-      });
+      // Welcome message with new format
+      const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
+        `Hola ${ctx.from.first_name || 'Usuario'}!\n\n` +
+        `Sistema de pagos automaticos.\n\n` +
+        `*Comandos disponibles:*\n` +
+        `/pagar - Realizar un pago\n` +
+        `/saldo - Ver tu saldo disponible\n` +
+        `/cargar - Cargar saldo a tu cuenta`;
 
       const keyboard = {
         reply_markup: {
