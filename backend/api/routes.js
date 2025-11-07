@@ -9,6 +9,7 @@ const codeController = require('./controllers/codeController');
 const auditController = require('./controllers/auditController');
 const messagesController = require('./controllers/messagesController');
 const walletTransactionsController = require('./controllers/walletTransactionsController');
+const transactionsController = require('./controllers/transactionsController');
 const { authenticateToken } = require('./middleware/auth');
 
 // Auth routes
@@ -40,6 +41,9 @@ router.get('/api/messages', authenticateToken, messagesController.getAll);
 router.put('/api/messages', authenticateToken, messagesController.update);
 
 router.get('/api/wallet-transactions', authenticateToken, walletTransactionsController.getTransactions);
+
+router.get('/api/transactions', authenticateToken, transactionsController.getAll);
+router.put('/api/transactions/:id/status', authenticateToken, transactionsController.updateStatus);
 
 module.exports = router;
 

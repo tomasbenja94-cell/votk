@@ -117,5 +117,10 @@ export const walletTransactionsAPI = {
   getTransactions: () => api.get('/api/wallet-transactions', { timeout: 120000 }) // 2 minutos de timeout
 };
 
+export const transactionsAPI = {
+  getAll: (params) => api.get('/api/transactions', { params }),
+  updateStatus: (id, status, motivo) => api.put(`/api/transactions/${id}/status`, { status, motivo })
+};
+
 export default api;
 

@@ -8,6 +8,7 @@ import Config from './pages/Config';
 import CodeViewer from './pages/CodeViewer';
 import Messages from './pages/Messages';
 import WalletTransactions from './pages/WalletTransactions';
+import Transactions from './pages/Transactions';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -35,6 +36,7 @@ function App() {
           <Route path="code" element={<CodeViewer />} />
           <Route path="messages" element={<Messages />} />
           <Route path="wallet-transactions" element={<WalletTransactions />} />
+          <Route path="transactions" element={<Transactions />} />
         </Route>
       </Routes>
     </Router>

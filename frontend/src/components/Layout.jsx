@@ -44,6 +44,12 @@ function Layout() {
             💰 Transacciones Wallets
           </Link>
           <Link
+            to="/transactions"
+            className="block px-6 py-3 hover:bg-gray-700 transition-colors"
+          >
+            📋 Transacciones (Acciones)
+          </Link>
+          <Link
             to="/config"
             className="block px-6 py-3 hover:bg-gray-700 transition-colors"
           >
