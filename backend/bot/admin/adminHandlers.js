@@ -1946,15 +1946,8 @@ const handlers = {
       const userResult = await pool.query('SELECT saldo_usdt FROM users WHERE id = $1', [transaction.user_id]);
       const newBalance = parseFloat(userResult.rows[0].saldo_usdt).toFixed(2);
 
-      // Notify all admins
+      // Notify user only (no notifyAdmins to avoid duplicate messages)
       const bot = require('../bot').bot;
-      await notificationService.notifyAdmins(bot, 'carga_confirmada', {
-        admin: ctx.from.username || 'admin',
-        username: transaction.username,
-        amount: transaction.amount_usdt
-      });
-
-      // Notify user
       await notificationService.notifyUser(bot, transaction.telegram_id, 'carga_confirmada', {
         amount: transaction.amount_usdt
       });
