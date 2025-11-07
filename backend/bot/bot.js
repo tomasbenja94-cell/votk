@@ -154,6 +154,20 @@ bot.on('callback_query', async (ctx) => {
       await commandHandlers.cargar(ctx);
     } else if (data === 'action_historial') {
       await commandHandlers.historial(ctx);
+    } else if (data === 'pago_completado_menu') {
+      // Delete the confirmation message and show /start
+      try {
+        await ctx.deleteMessage();
+      } catch (deleteError) {
+        console.log('Could not delete confirmation message:', deleteError.message);
+      }
+      
+      // Clean chat and show start menu
+      const chatManager = require('./utils/chatManager');
+      await chatManager.cleanChat(ctx, ctx.from.id, 0);
+      await commandHandlers.start(ctx);
+      await ctx.answerCbQuery('✅ Menú principal');
+      return;
     } else if (data === 'action_back') {
       await commandHandlers.start(ctx);
     } else if (data === 'admin_users') {
