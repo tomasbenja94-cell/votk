@@ -393,6 +393,12 @@ const handlers = {
 
       console.log('Photo received:', { userId, state, data });
 
+      // Si está en estado de enviar noticia, manejar la foto
+      if (state === 'admin_sending_noticia') {
+        await this.handleAdminNoticiaPhoto(ctx);
+        return;
+      }
+
       if (state !== 'cargar_waiting_proof') {
         console.log(`Photo received but state is not 'cargar_waiting_proof'. Current state: ${state}, data:`, data);
         
