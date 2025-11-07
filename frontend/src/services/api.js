@@ -14,8 +14,13 @@ const getApiUrl = () => {
     return 'http://localhost:3001';
   }
   
-  // En producción, usar la misma URL pero con puerto 3001
-  // O si hay nginx, usar rutas relativas (solo /api)
+  // Si estamos en el puerto 80 (sin puerto explícito), probablemente hay nginx
+  // Usar rutas relativas para que nginx haga el proxy
+  if (window.location.port === '' || window.location.port === '80' || window.location.port === '443') {
+    return ''; // Rutas relativas - nginx hará el proxy a /api
+  }
+  
+  // Si hay un puerto explícito (como :3000), usar el mismo hostname con puerto 3001
   const hostname = window.location.hostname;
   return `http://${hostname}:3001`;
 };
