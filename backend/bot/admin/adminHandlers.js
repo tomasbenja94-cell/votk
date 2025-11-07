@@ -1446,6 +1446,7 @@ const handlers = {
       
       // Prepare confirmation message with ALL information
       const montoFormateado = txForMessage.rows[0]?.amount_ars ? formatARS(txForMessage.rows[0].amount_ars) : '';
+      const amountUSDT = parseFloat(txForMessage.rows[0]?.amount_usdt || 0);
       const fechaHora = new Date().toLocaleString('es-AR', { 
         timeZone: 'America/Argentina/Buenos_Aires',
         day: '2-digit',
@@ -1460,7 +1461,7 @@ const handlers = {
         `*DATOS DE PAGO:*\n\n` +
         `*FECHA Y HORA:* ${fechaHora}\n` +
         `*MONTO DEL PAGO:* ${montoFormateado}\n` +
-        `*TOTAL COBRADO:* ${txForMessage.rows[0]?.amount_usdt.toFixed(0) || '0'} USDT\n\n` +
+        `*TOTAL COBRADO:* ${amountUSDT.toFixed(0)} USDT\n\n` +
         `Muchas gracias por confiar!`;
       
       const menuKeyboard = {
@@ -1503,10 +1504,11 @@ const handlers = {
         
         // Try again with simpler format - NO EXCEPTIONS
         try {
+          const simpleAmountUSDT = parseFloat(txForMessage.rows[0]?.amount_usdt || 0);
           const simpleMessage = `✅ *Pago Realizado!*\n\n` +
             `Tu pago fue pagado correctamente.\n\n` +
             `Monto: ${montoFormateado}\n` +
-            `Cobrado: ${txForMessage.rows[0]?.amount_usdt.toFixed(0) || '0'} USDT\n\n` +
+            `Cobrado: ${simpleAmountUSDT.toFixed(0)} USDT\n\n` +
             `Muchas gracias!`;
           
           sentMessage = await bot.telegram.sendMessage(
