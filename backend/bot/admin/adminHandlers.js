@@ -93,6 +93,10 @@ async function updateTransactionStatus(executor, { id, status, motivo = null, ad
         motivo = COALESCE($2, motivo),
         admin_id = COALESCE($3, admin_id),
         updated_at = NOW(),
+        alerted_at = CASE
+          WHEN $1 IN ('pendiente','procesando') THEN alerted_at
+          ELSE NULL
+        END,
         review_started_at = CASE
           WHEN $1 IN ('procesando', 'admitido', 'pagado') THEN COALESCE(review_started_at, NOW())
           WHEN $1 = 'pendiente' THEN NULL

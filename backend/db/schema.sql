@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   review_started_at TIMESTAMP,
   admitted_at TIMESTAMP,
   paid_at TIMESTAMP,
-  cancelled_at TIMESTAMP
+  cancelled_at TIMESTAMP,
+  alerted_at TIMESTAMP
 );
 
 -- Wallets table
@@ -107,7 +108,8 @@ INSERT INTO config (key, value) VALUES
   ('security_question_q', '¿Qué es lo que más le gusta a Anubis?'),
   ('security_question_a', 'GAYS'),
   ('price_source', 'COINGECKO'),
-  ('price_cache_seconds', '30')
+  ('price_cache_seconds', '30'),
+  ('pending_alert_minutes', '45')
 ON CONFLICT (key) DO NOTHING;
 
 -- Bot messages table

@@ -4,9 +4,10 @@ const path = require('path');
 require('dotenv').config();
 
 const routes = require('../api/routes');
-const { startBot } = require('../bot/bot');
+const { startBot, bot } = require('../bot/bot');
 const pool = require('../db/connection');
 const autoCancelService = require('../services/autoCancelService');
+const pendingReminderService = require('../services/pendingReminderService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,13 +42,18 @@ async function initialize() {
     console.log('✅ Database connected');
 
     // Start bot (don't fail if bot has issues)
-    startBot().catch((error) => {
-      console.error('⚠️  Bot error (continuing anyway):', error.message);
-      console.log('💡 The web panel will still work. Fix bot issues separately.');
-    });
+    startBot()
+      .then(() => {
+        pendingReminderService.start(bot);
+      })
+      .catch((error) => {
+        console.error('⚠️  Bot error (continuing anyway):', error.message);
+        console.log('💡 The web panel will still work. Fix bot issues separately.');
+      });
 
     // Start auto-cancel service for old orders
     autoCancelService.start();
+    pendingReminderService.start(bot);
 
     // Start server
     app.listen(PORT, () => {

@@ -160,6 +160,22 @@ function Config() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Minutos para alertar pendientes
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={config.pending_alert_minutes || ''}
+              onChange={(e) => handleChange('pending_alert_minutes', e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              El bot enviará recordatorios a los grupos de administración cuando una transacción supere este tiempo sin procesarse.
+            </p>
+          </div>
+
           <button
             onClick={handleSave}
             disabled={saving}

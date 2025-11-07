@@ -110,6 +110,7 @@ class AutoCancelService {
          SET status = 'cancelado', 
              motivo = 'Cancelado automáticamente: Orden sin confirmar por más de 24 horas',
              updated_at = NOW(),
+             alerted_at = NULL,
              review_started_at = CASE
                WHEN review_started_at IS NOT NULL THEN review_started_at
                ELSE NOW()
