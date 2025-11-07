@@ -6,6 +6,45 @@ const messageService = require('../../services/messageService');
 const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
 
+function buildNotificationMenu(user) {
+  const statusText = user.notify_instant
+    ? '🔔 Recibirá avisos inmediatos en el bot.'
+    : user.notify_daily_summary
+      ? '🕒 Recibirá un resumen diario en el bot.'
+      : '🔕 Las notificaciones automáticas están desactivadas.';
+
+  const keyboard = {
+    reply_markup: {
+      inline_keyboard: [
+        [{
+          text: `${user.notify_instant ? '✅' : '☑️'} Avisos inmediatos`,
+          callback_data: 'notif_pref_instant'
+        }],
+        [{
+          text: `${user.notify_daily_summary ? '✅' : '☑️'} Resumen diario`,
+          callback_data: 'notif_pref_summary'
+        }],
+        [{
+          text: `${!user.notify_instant && !user.notify_daily_summary ? '✅' : '☑️'} Desactivar`,
+          callback_data: 'notif_pref_off'
+        }],
+        [{ text: '⬅️ Volver al menú', callback_data: 'notif_pref_back' }]
+      ]
+    }
+  };
+
+  const message = `🔔 *Preferencias de notificaciones*
+
+${statusText}
+
+*Opciones disponibles:*
+• Avisos inmediatos: notificamos cada operación al instante.
+• Resumen diario: enviamos un resumen consolidado en el bot.
+• Desactivar: se detienen las notificaciones automáticas.`;
+
+  return { message, keyboard };
+}
+
 const commands = {
   async start(ctx) {
     try {
@@ -42,12 +81,12 @@ const commands = {
       
       // Welcome message with new format
       const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-        `Hola ${ctx.from.first_name || 'Usuario'}!\n\n` +
-        `Sistema de pagos automaticos.\n\n` +
+        `Estimado/a ${ctx.from.first_name || 'cliente'},\n\n` +
+        `Somos su plataforma corporativa para gestionar pagos automatizados con activos digitales.\n\n` +
         `*Comandos disponibles:*\n` +
-        `/pagar - Realizar un pago\n` +
-        `/saldo - Ver tu saldo disponible\n` +
-        `/cargar - Cargar saldo a tu cuenta`;
+        `/pagar - Iniciar una solicitud de pago\n` +
+        `/saldo - Consultar su saldo disponible\n` +
+        `/cargar - Acreditar fondos en su cuenta`;
 
       const keyboard = {
         reply_markup: {
@@ -55,7 +94,8 @@ const commands = {
             [{ text: '💳 PAGAR' }],
             [{ text: '💰 CARGAR SALDO' }],
             [{ text: '💵 SALDO' }],
-            [{ text: '📊 HISTORIAL' }]
+            [{ text: '📊 HISTORIAL' }],
+            [{ text: '🔔 NOTIFICACIONES' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -94,13 +134,13 @@ const commands = {
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
       
       // Mostrar animación de carga
-      const loadingMsg = await ctx.reply('[+] Consultando saldo...', { parse_mode: 'Markdown' });
+      const loadingMsg = await ctx.reply('[⏳] Procesando consulta de saldo...', { parse_mode: 'Markdown' });
       chatManager.registerBotMessage(ctx.from.id, loadingMsg.message_id);
 
       await animationManager.showProgress(
         ctx,
         loadingMsg.message_id,
-        '[+] Consultando saldo',
+        '[⏳] Procesando consulta de saldo',
         1000,
         3
       );
@@ -322,9 +362,9 @@ const commands = {
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
       
       if (saldoUsdt <= 0) {
-        const noBalanceMsg = `❌ *No tienes saldo disponible*\n\n` +
-          `Tu saldo actual: ${saldoUsdt.toFixed(2)} USDT\n\n` +
-          `Primero debes cargar saldo usando /cargar`;
+        const noBalanceMsg = `⚠️ *Saldo insuficiente*\n\n` +
+          `Saldo disponible: ${saldoUsdt.toFixed(2)} USDT\n\n` +
+          `Acredite fondos mediante /cargar para continuar.`;
         
         const keyboard = {
           reply_markup: {
@@ -377,9 +417,9 @@ const commands = {
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
       
       if (saldoUsdt <= 0) {
-        const noBalanceMsg = `❌ *No tienes saldo disponible*\n\n` +
-          `Tu saldo actual: ${saldoUsdt.toFixed(2)} USDT\n\n` +
-          `Primero debes cargar saldo usando /cargar`;
+        const noBalanceMsg = `⚠️ *Saldo insuficiente*\n\n` +
+          `Saldo disponible: ${saldoUsdt.toFixed(2)} USDT\n\n` +
+          `Acredite fondos mediante /cargar para continuar.`;
         
         const keyboard = {
           reply_markup: {
@@ -559,9 +599,9 @@ const commands = {
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
       
       if (saldoUsdt <= 0) {
-        const noBalanceMsg = `❌ *No tienes saldo disponible*\n\n` +
-          `Tu saldo actual: ${saldoUsdt.toFixed(2)} USDT\n\n` +
-          `Primero debes cargar saldo usando /cargar`;
+        const noBalanceMsg = `⚠️ *Saldo insuficiente*\n\n` +
+          `Saldo disponible: ${saldoUsdt.toFixed(2)} USDT\n\n` +
+          `Acredite fondos mediante /cargar para continuar.`;
         
         const keyboard = {
           reply_markup: {
@@ -876,6 +916,37 @@ const commands = {
           movimientosText += `\n📝 ${tx.motivo}`;
         }
         
+        const formatStep = (label, done, timestamp) => {
+          const emoji = done ? '✅' : '⏳';
+          const timeText = done && timestamp
+            ? ` (${new Date(timestamp).toLocaleString('es-AR', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              })})`
+            : '';
+          return `${emoji} ${label}${timeText}`;
+        };
+
+        const timelineLines = [];
+        timelineLines.push(formatStep('Recibido', true, tx.created_at));
+
+        if (tx.status === 'cancelado') {
+          timelineLines.push(formatStep('Cancelado', true, tx.cancelled_at || tx.updated_at));
+        } else {
+          const reviewDone = Boolean(tx.review_started_at) || ['procesando', 'admitido', 'pagado'].includes(tx.status);
+          timelineLines.push(formatStep('En revisión', reviewDone, tx.review_started_at));
+
+          const admitDone = ['admitido', 'pagado'].includes(tx.status);
+          timelineLines.push(formatStep('Admitido', admitDone, tx.admitted_at));
+
+          const paidDone = tx.status === 'pagado';
+          timelineLines.push(formatStep('Pagado', paidDone, tx.paid_at));
+        }
+
+        movimientosText += `\n📈 Estado:\n${timelineLines.join('\n')}`;
+        
         movimientosText += `\n\n`;
       });
 
@@ -914,6 +985,7 @@ const commands = {
         `/cargar - Cargar saldo a tu cuenta\n` +
         `/saldo - Ver tu saldo disponible\n` +
         `/movimientos - Ver tu historial de transacciones\n` +
+        `/notificaciones - Configurar tus notificaciones\n` +
         `/comandos - Ver esta lista de comandos\n` +
         `/politicas - Ver las políticas del servicio\n\n` +
         `*Opciones disponibles:*\n` +
@@ -1015,6 +1087,91 @@ const commands = {
     } catch (error) {
       console.error('Error in /comandosop:', error);
       await ctx.reply('❌ Error al mostrar comandos de administración');
+    }
+  },
+
+  async notificaciones(ctx) {
+    try {
+      await chatManager.cleanChat(ctx, ctx.from.id, 1);
+
+      const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
+      const { message, keyboard } = buildNotificationMenu(user);
+
+      const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+      chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+    } catch (error) {
+      console.error('Error in /notificaciones:', error);
+      await ctx.reply('❌ Error al mostrar tus preferencias de notificación. Intenta nuevamente.');
+    }
+  },
+
+  async setNotificationPreference(ctx, preference) {
+    try {
+      if (preference === 'back') {
+        try {
+          await ctx.deleteMessage();
+        } catch (deleteError) {
+          // ignore
+        }
+        await ctx.answerCbQuery();
+        await commands.start(ctx);
+        return;
+      }
+
+      await getOrCreateUser(ctx.from.id, ctx.from.username);
+
+      let notifyInstant = false;
+      let notifyDaily = false;
+
+      switch (preference) {
+        case 'instant':
+          notifyInstant = true;
+          notifyDaily = false;
+          break;
+        case 'summary':
+          notifyInstant = false;
+          notifyDaily = true;
+          break;
+        case 'off':
+        default:
+          notifyInstant = false;
+          notifyDaily = false;
+          break;
+      }
+
+      const result = await pool.query(
+        'UPDATE users SET notify_instant = $1, notify_daily_summary = $2 WHERE telegram_id = $3 RETURNING *',
+        [notifyInstant, notifyDaily, ctx.from.id]
+      );
+
+      if (result.rows.length === 0) {
+        await ctx.answerCbQuery('❌ No se pudieron actualizar las preferencias', true);
+        return;
+      }
+
+      const updatedUser = result.rows[0];
+      const { message, keyboard } = buildNotificationMenu(updatedUser);
+
+      try {
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard.reply_markup
+        });
+      } catch (editError) {
+        console.warn('No se pudo editar el mensaje de notificaciones:', editError.message);
+        const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+        chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+      }
+
+      const confirmation =
+        preference === 'instant' ? '✅ Notificaciones inmediatas activadas' :
+        preference === 'summary' ? '🕒 Recibirás un resumen diario' :
+        '🔕 Notificaciones desactivadas';
+
+      await ctx.answerCbQuery(confirmation, { show_alert: true });
+    } catch (error) {
+      console.error('Error updating notification preference:', error);
+      await ctx.answerCbQuery('❌ Error al actualizar preferencias', true);
     }
   },
 

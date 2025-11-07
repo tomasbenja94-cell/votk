@@ -122,7 +122,12 @@ export const transactionsAPI = {
   updateStatus: (id, status, motivo) => api.put(`/api/transactions/${id}/status`, { status, motivo }),
   clearAll: () => api.post('/api/transactions/clear-all'),
   getDeleted: (params) => api.get('/api/transactions/deleted', { params }),
-  downloadDeletedPDF: (params) => api.get('/api/transactions/deleted/pdf', { params, responseType: 'blob' })
+  downloadDeletedPDF: (params) => api.get('/api/transactions/deleted/pdf', { params, responseType: 'blob' }),
+  export: (format, params) =>
+    api.get('/api/transactions/export', {
+      params: { ...params, format },
+      responseType: 'blob'
+    })
 };
 
 export default api;

@@ -4,6 +4,10 @@ import { Link, Outlet, useNavigate } from 'react-router-dom';
 function Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('theme') === 'dark';
+  });
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -25,8 +29,18 @@ function Layout() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 dark:text-gray-100">
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
@@ -36,7 +50,7 @@ function Layout() {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed md:static inset-y-0 left-0 z-30 bg-gray-800 text-white w-64 flex-shrink-0 transition-transform duration-300 ease-in-out transform ${
+      <div className={`fixed md:static inset-y-0 left-0 z-30 bg-gray-800 text-white dark:bg-gray-950 w-64 flex-shrink-0 transition-transform duration-300 ease-in-out transform ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         <div className="p-4 md:p-6">
@@ -130,20 +144,28 @@ function Layout() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden w-full md:w-auto">
-        <header className="bg-white shadow-sm p-3 md:p-4">
+        <header className="bg-white dark:bg-gray-800 shadow-sm p-3 md:p-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-gray-600 hover:text-gray-900 text-2xl md:text-xl"
+              className="text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white text-2xl md:text-xl"
             >
               ☰
             </button>
-            <div className="text-gray-600 text-sm md:text-base">
-              {localStorage.getItem('username') || 'Admin'}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsDarkMode((prev) => !prev)}
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-100 text-xs md:text-sm"
+              >
+                {isDarkMode ? '☀️ Modo claro' : '🌙 Modo oscuro'}
+              </button>
+              <div className="text-gray-600 dark:text-gray-200 text-sm md:text-base">
+                {localStorage.getItem('username') || 'Admin'}
+              </div>
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-3 md:p-6">
+        <main className="flex-1 overflow-y-auto p-3 md:p-6 bg-gray-50 dark:bg-gray-900">
           <Outlet />
         </main>
       </div>

@@ -3,12 +3,12 @@ const pool = require('../db/connection');
 async function updateWelcomeMessage() {
   try {
     const newMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-      `Hola {first_name}!\n\n` +
-      `Sistema de pagos automaticos.\n\n` +
+      `Estimado/a {first_name},\n\n` +
+      `Somos su plataforma corporativa para gestionar pagos automatizados con activos digitales.\n\n` +
       `*Comandos disponibles:*\n` +
-      `/pagar - Realizar un pago\n` +
-      `/saldo - Ver tu saldo disponible\n` +
-      `/cargar - Cargar saldo a tu cuenta`;
+      `/pagar - Iniciar una solicitud de pago\n` +
+      `/saldo - Consultar su saldo disponible\n` +
+      `/cargar - Acreditar fondos en su cuenta`;
 
     await pool.query(
       `UPDATE bot_messages 

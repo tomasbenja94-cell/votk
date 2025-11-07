@@ -73,25 +73,47 @@ class NotificationService {
    */
   async notifyUser(bot, userId, action, details) {
     try {
+      const userPrefs = await pool.query(
+        'SELECT notify_instant, notify_daily_summary FROM users WHERE telegram_id = $1',
+        [userId]
+      );
+
+      if (userPrefs.rows.length === 0) {
+        console.warn(`No se encontraron preferencias para usuario ${userId}, omitiendo notificación`);
+        return;
+      }
+
+      const { notify_instant: notifyInstant, notify_daily_summary: notifyDailySummary } = userPrefs.rows[0];
+
+      // Si las notificaciones instantáneas están desactivadas, omitir envío
+      if (!notifyInstant) {
+        if (notifyDailySummary) {
+          console.log(`Notificación instantánea omitida para ${userId} (prefiere resumen diario)`);
+        } else {
+          console.log(`Notificación instantánea desactivada para ${userId}`);
+        }
+        return;
+      }
+
       let message = '';
 
       switch (action) {
         case 'pago_aprobado':
-          message = `✅ *Tu pago fue aprobado con éxito*\n\n` +
+          message = `✅ *Pago acreditado con éxito*\n\n` +
                    `🔄 Estado actualizado: PAGADO\n` +
-                   `💰 Monto: ${details.amount} USDT`;
+                   `💰 Monto aplicado: ${details.amount} USDT`;
           break;
 
         case 'pago_cancelado':
-          message = `⚠️ *Tu operación fue rechazada*\n\n` +
+          message = `⚠️ *Operación cancelada*\n\n` +
                    `📝 Motivo: ${details.motivo}\n` +
-                   `💸 El monto fue reembolsado a tu saldo virtual.`;
+                   `💸 El importe fue reintegrado a su saldo virtual.`;
           break;
 
         case 'carga_confirmada':
-          message = `✅ *Depósito confirmado con éxito*\n\n` +
-                   `💰 Monto: ${details.amount} USDT\n` +
-                   `💵 Tu saldo ha sido actualizado.`;
+          message = `✅ *Depósito confirmado*\n\n` +
+                   `💰 Monto acreditado: ${details.amount} USDT\n` +
+                   `💵 Su saldo fue actualizado correctamente.`;
           break;
 
         default:

@@ -20,6 +20,10 @@ async function addDeletedTransactionsTable() {
         motivo TEXT,
         original_created_at TIMESTAMP,
         original_updated_at TIMESTAMP,
+        original_review_started_at TIMESTAMP,
+        original_admitted_at TIMESTAMP,
+        original_paid_at TIMESTAMP,
+        original_cancelled_at TIMESTAMP,
         deleted_at TIMESTAMP DEFAULT NOW(),
         deleted_by TEXT
       );

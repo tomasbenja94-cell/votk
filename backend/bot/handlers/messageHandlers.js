@@ -96,7 +96,7 @@ const handlers = {
       const amount = parseFloat(amountText);
       
       if (isNaN(amount) || amount <= 0) {
-        const errorMsg = `❌ Por favor ingresá un monto válido mayor a 0.`;
+        const errorMsg = `⚠️ Ingrese un monto válido mayor a 0.`;
         await ctx.reply(errorMsg);
         return;
       }
@@ -557,13 +557,13 @@ const handlers = {
     
     // Validar longitud del DNI (exactamente 8 caracteres)
     if (dniOnly.length !== 8) {
-      await ctx.reply('❌ El DNI debe tener exactamente 8 caracteres. Por favor ingresá tu DNI correctamente.');
+      await ctx.reply('⚠️ El DNI debe contener exactamente 8 dígitos. Ingréselo nuevamente.');
       return;
     }
     
     // Validar que sean solo números
     if (!/^\d+$/.test(dniOnly)) {
-      await ctx.reply('❌ El DNI debe contener solo números. Por favor ingresá tu DNI correctamente.');
+      await ctx.reply('⚠️ El DNI debe contener únicamente números. Ingréselo nuevamente.');
       return;
     }
     
@@ -572,7 +572,7 @@ const handlers = {
     if (type === 'multas') {
       stateManager.setState(ctx.from.id, 'pagar_waiting_tramite');
       
-      const message = `[+] 💭 Ingresá el tipo de trámite:\n\n⬅️ *Regresar al menú principal*`;
+      const message = `[+] 💭 Ingrese el tipo de trámite:\n\n⬅️ *Regresar al menú principal*`;
       const keyboard = {
         reply_markup: {
           inline_keyboard: [
@@ -593,14 +593,14 @@ const handlers = {
     
     // Validar longitud del trámite (exactamente 11 caracteres)
     if (tramiteOnly.length !== 11) {
-      await ctx.reply('❌ El número de trámite debe tener exactamente 11 caracteres. Por favor ingresá el trámite correctamente.');
+      await ctx.reply('⚠️ El número de trámite debe contener 11 caracteres. Verifique la información.');
       return;
     }
     
     stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), tramite: tramiteOnly });
     stateManager.setState(ctx.from.id, 'pagar_waiting_sexo');
     
-    const message = `[+] ⚧️ Ingresá el sexo (M o F):\n\n⬅️ *Regresar al menú principal*`;
+    const message = `[+] ⚧️ Ingrese el sexo (M o F):\n\n⬅️ *Regresar al menú principal*`;
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
@@ -618,14 +618,14 @@ const handlers = {
     // Extraer solo la primera línea y validar que sea M o F
     const sexoOnly = sexo.split('\n')[0].trim().toUpperCase();
     if (sexoOnly !== 'M' && sexoOnly !== 'F') {
-      await ctx.reply('❌ Por favor ingresa M o F');
+      await ctx.reply('⚠️ Ingrese únicamente M o F.');
       return;
     }
     
     stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), sexo: sexoOnly });
     stateManager.setState(ctx.from.id, 'pagar_waiting_patente');
     
-    const message = `[+] 💭 Ingresá la patente:\n\n⬅️ *Regresar al menú principal*`;
+    const message = `[+] 💭 Ingrese la patente:\n\n⬅️ *Regresar al menú principal*`;
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
@@ -645,7 +645,7 @@ const handlers = {
     
     // Validar longitud de la patente (exactamente 6 caracteres)
     if (patenteOnly.length !== 6) {
-      await ctx.reply('❌ La patente debe tener exactamente 6 caracteres. Por favor ingresá la patente correctamente.');
+      await ctx.reply('⚠️ La patente debe contener 6 caracteres. Verifique e ingrese nuevamente.');
       return;
     }
     
@@ -671,7 +671,7 @@ const handlers = {
     const nombreServicioOnly = nombreServicio.split('\n')[0].trim();
     
     if (!nombreServicioOnly || nombreServicioOnly.length < 2) {
-      await ctx.reply('❌ Por favor ingresá un nombre de servicio válido (mínimo 2 caracteres).');
+      await ctx.reply('⚠️ Ingrese un nombre de servicio válido (mínimo 2 caracteres).');
       return;
     }
     
@@ -700,7 +700,7 @@ const handlers = {
     const dniOnly = dni.split('\n')[0].trim();
     
     if (!dniOnly || dniOnly.length < 4) {
-      await ctx.reply('❌ Por favor ingresá un número de servicio válido (mínimo 4 caracteres).');
+      await ctx.reply('⚠️ Ingrese un número de servicio válido (mínimo 4 caracteres).');
       return;
     }
     
@@ -731,7 +731,7 @@ const handlers = {
     const nombreOnly = nombre.split('\n')[0].trim();
     
     if (!nombreOnly || nombreOnly.length < 2) {
-      await ctx.reply('❌ Por favor ingresá un nombre válido (mínimo 2 caracteres).');
+      await ctx.reply('⚠️ Ingrese un nombre válido (mínimo 2 caracteres).');
       return;
     }
     
@@ -739,7 +739,7 @@ const handlers = {
     stateManager.setState(ctx.from.id, 'pagar_macro_waiting_monto');
     
     const message = `[+] 👤 Nombre registrado: ${nombreOnly}\n\n` +
-      `💰 *Ingresá el monto a pagar (en ARS)*\n\n` +
+      `💰 *Ingrese el monto a pagar (en ARS)*\n\n` +
       `📝 *Formato:*\n` +
       `Ejemplo: \`500000,00\`\n` +
       `Se interpreta como: *$ 500.000,00*\n\n` +
@@ -769,7 +769,7 @@ const handlers = {
       const monto = parseFloat(montoNormalizado);
       
       if (isNaN(monto) || monto <= 0) {
-        const errorMsg = `❌ Monto inválido. Por favor ingresa el monto en el formato: \`500000,00\`\n\nEjemplo: \`500000,00\` = $ 500.000,00`;
+        const errorMsg = `⚠️ Monto inválido. Ingrese el valor utilizando el formato \`500000,00\`.\n\nEjemplo: \`500000,00\` = $ 500.000,00`;
         await ctx.replyWithMarkdown(errorMsg);
         return;
       }
@@ -867,7 +867,7 @@ const handlers = {
       const monto = parseFloat(montoNormalizado);
       
       if (isNaN(monto) || monto <= 0) {
-        const errorMsg = `❌ Monto inválido. Por favor ingresa el monto en el formato: \`500000,00\`\n\nEjemplo: \`500000,00\` = $ 500.000,00`;
+        const errorMsg = `⚠️ Monto inválido. Ingrese el valor utilizando el formato \`500000,00\`.\n\nEjemplo: \`500000,00\` = $ 500.000,00`;
         await ctx.replyWithMarkdown(errorMsg);
         return;
       }
@@ -1094,8 +1094,8 @@ const handlers = {
 
         // Create transaction record
         const transactionResult = await client.query(
-          `INSERT INTO transactions (user_id, type, amount_usdt, amount_ars, status)
-           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+          `INSERT INTO transactions (user_id, type, amount_usdt, amount_ars, status, review_started_at)
+           VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *`,
           [user.id, 'pago', amountUSDT, monto, 'procesando']
         );
 
@@ -1175,8 +1175,8 @@ const handlers = {
         // Mostrar mensaje de confirmación con monto
         const montoFormateado = formatARS(monto);
         const confirmMsg = `✅ *Orden enviada*\n\n` +
-          `Tu pago ha sido recibido.\n` +
-          `Te notificaremos cuando sea procesado.\n\n` +
+          `Su pago fue recibido correctamente.\n` +
+          `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
           `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
 
@@ -1275,8 +1275,8 @@ const handlers = {
 
         // Create transaction record
         const transactionResult = await client.query(
-          `INSERT INTO transactions (user_id, type, amount_usdt, amount_ars, status)
-           VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+          `INSERT INTO transactions (user_id, type, amount_usdt, amount_ars, status, review_started_at)
+           VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING *`,
           [user.id, 'pago', amountUSDT, monto, 'procesando']
         );
 
@@ -1367,8 +1367,11 @@ const handlers = {
         // Mostrar mensaje de confirmación con monto
         const montoFormateado = formatARS(monto);
         const confirmMsg = `✅ *Orden enviada*\n\n` +
-          `Tu pago ha sido recibido.\n` +
-          `Te notificaremos cuando sea procesado.\n\n` +
+          `Su pago fue recibido correctamente.\n` +
+          `Le notificaremos cuando finalice la gestión.\n\n` +
+        const confirmMsg = `✅ *Orden enviada*\n\n` +
+          `Su pago fue recibido correctamente.\n` +
+          `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
           `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
         
@@ -1579,8 +1582,8 @@ const handlers = {
 
         // Show waiting message with new format (DO NOT clean chat, only the confirmation message was deleted)
         const waitingMessage = `✅ *Orden enviada*\n\n` +
-          `Tu pago ha sido recibido.\n` +
-          `Te notificaremos cuando sea procesado.\n\n` +
+          `Su pago fue recibido correctamente.\n` +
+          `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
           `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
 
@@ -1629,7 +1632,7 @@ const handlers = {
     
     // Show cancellation message (DO NOT clean chat, only the confirmation message was deleted)
     const cancelMsg = `⚠️ *Orden cancelada.*\n\n` +
-      `Puedes ingresar un nuevo monto cuando lo desees.`;
+      `Puede ingresar un nuevo monto cuando lo considere necesario.`;
     
     const sentMessage = await ctx.replyWithMarkdown(cancelMsg);
     chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
@@ -1642,7 +1645,7 @@ const handlers = {
     stateManager.setData(ctx.from.id, { ...data, login: loginOnly });
     stateManager.setState(ctx.from.id, 'pagar_otra_multa_waiting_servicio');
     
-    const message = `[+] 💭 Ingresá el nombre del servicio o entidad:\n\n⬅️ *Regresar al menú principal*`;
+    const message = `[+] 💭 Ingrese el nombre del servicio o entidad:\n\n⬅️ *Regresar al menú principal*`;
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
@@ -1684,7 +1687,7 @@ const handlers = {
     const servicioOnly = servicio.split('\n')[0].trim();
     
     if (!servicioOnly || servicioOnly.length < 2) {
-      await ctx.reply('❌ Por favor ingresá un nombre de servicio válido (mínimo 2 caracteres).');
+      await ctx.reply('⚠️ Ingrese un nombre de servicio válido (mínimo 2 caracteres).');
       return;
     }
     
@@ -1872,7 +1875,7 @@ const handlers = {
 
       // Obtener todos los usuarios
       const usersResult = await pool.query(
-        'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL'
+        'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL AND notify_instant = true'
       );
 
       if (usersResult.rows.length === 0) {
@@ -1947,7 +1950,7 @@ const handlers = {
 
       // Obtener todos los usuarios
       const usersResult = await pool.query(
-        'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL'
+        'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL AND notify_instant = true'
       );
 
       if (usersResult.rows.length === 0) {

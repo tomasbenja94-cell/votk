@@ -109,7 +109,14 @@ class AutoCancelService {
         `UPDATE transactions 
          SET status = 'cancelado', 
              motivo = 'Cancelado automáticamente: Orden sin confirmar por más de 24 horas',
-             updated_at = NOW() 
+             updated_at = NOW(),
+             review_started_at = CASE
+               WHEN review_started_at IS NOT NULL THEN review_started_at
+               ELSE NOW()
+             END,
+             admitted_at = admitted_at,
+             paid_at = paid_at,
+             cancelled_at = COALESCE(cancelled_at, NOW())
          WHERE id = $1`,
         [transaction.id]
       );
@@ -145,9 +152,9 @@ class AutoCancelService {
         await bot.telegram.sendMessage(
           transaction.telegram_id,
           `⚠️ *Orden cancelada automáticamente*\n\n` +
-          `Tu orden #${transaction.id} ha sido cancelada porque no fue confirmada en más de 24 horas.\n\n` +
-          `Si se había deducido saldo, ha sido reembolsado.\n\n` +
-          `💡 Usa /movimientos para ver todos tus movimientos.`,
+          `La orden #${transaction.id} fue cancelada porque no se confirmó en un plazo mayor a 24 horas.\n\n` +
+          `Si se había deducido saldo, el importe fue restituido.\n\n` +
+          `💡 Utilice /movimientos para revisar el detalle de sus operaciones.`,
           { parse_mode: 'Markdown' }
         );
       } catch (notifyError) {

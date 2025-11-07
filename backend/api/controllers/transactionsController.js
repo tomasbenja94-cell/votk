@@ -2,9 +2,50 @@ const pool = require('../../db/connection');
 const auditLogger = require('../../services/auditLogger');
 const notificationService = require('../../bot/services/notificationService');
 
+function buildTransactionFilterClauses({ status, type, from, to, search }) {
+  const conditions = [];
+  const params = [];
+
+  if (status) {
+    conditions.push(`t.status = $${params.length + 1}`);
+    params.push(status);
+  }
+
+  if (type) {
+    conditions.push(`t.type = $${params.length + 1}`);
+    params.push(type);
+  }
+
+  if (from) {
+    const fromDate = new Date(from);
+    if (!isNaN(fromDate.getTime())) {
+      conditions.push(`t.created_at >= $${params.length + 1}`);
+      params.push(fromDate);
+    }
+  }
+
+  if (to) {
+    const toDate = new Date(to);
+    if (!isNaN(toDate.getTime())) {
+      conditions.push(`t.created_at <= $${params.length + 1}`);
+      params.push(toDate);
+    }
+  }
+
+  if (search) {
+    conditions.push(`(
+      LOWER(COALESCE(u.username, '')) LIKE $${params.length + 1} OR
+      LOWER(COALESCE(t.identifier, '')) LIKE $${params.length + 1}
+    )`);
+    params.push(`%${search.toLowerCase()}%`);
+  }
+
+  return { conditions, params };
+}
+
 async function getAll(req, res) {
   try {
-    const { status, limit = 100, offset = 0 } = req.query;
+    const { status, type, from, to, search, limit = 100, offset = 0 } = req.query;
     
     let query = `
       SELECT 
@@ -17,30 +58,23 @@ async function getAll(req, res) {
       LEFT JOIN admins a ON t.admin_id = a.id
     `;
     
-    const params = [];
-    const conditions = [];
-    
-    if (status) {
-      conditions.push(`t.status = $${params.length + 1}`);
-      params.push(status);
-    }
+    const { conditions, params: filterParams } = buildTransactionFilterClauses({ status, type, from, to, search });
     
     if (conditions.length > 0) {
       query += ` WHERE ${conditions.join(' AND ')}`;
     }
     
-    query += ` ORDER BY t.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(parseInt(limit), parseInt(offset));
+    query += ` ORDER BY t.created_at DESC LIMIT $${filterParams.length + 1} OFFSET $${filterParams.length + 2}`;
+    const params = [...filterParams, parseInt(limit), parseInt(offset)];
     
     const result = await pool.query(query, params);
     
     // Get total count
-    let countQuery = 'SELECT COUNT(*) as total FROM transactions t';
+    let countQuery = 'SELECT COUNT(*) as total FROM transactions t LEFT JOIN users u ON t.user_id = u.id';
     if (conditions.length > 0) {
       countQuery += ` WHERE ${conditions.join(' AND ')}`;
     }
-    const countParams = status ? [status] : [];
-    const countResult = await pool.query(countQuery, countParams);
+    const countResult = await pool.query(countQuery, filterParams);
     
     res.json({
       transactions: result.rows,
@@ -113,7 +147,31 @@ async function updateStatus(req, res) {
       
       // Update transaction status
       await client.query(
-        'UPDATE transactions SET status = $1, motivo = $2, updated_at = NOW() WHERE id = $3',
+        `UPDATE transactions
+         SET status = $1,
+             motivo = COALESCE($2, motivo),
+             updated_at = NOW(),
+             review_started_at = CASE
+               WHEN $1 IN ('procesando', 'admitido', 'pagado') THEN COALESCE(review_started_at, NOW())
+               WHEN $1 = 'pendiente' THEN NULL
+               ELSE review_started_at
+             END,
+             admitted_at = CASE
+               WHEN $1 IN ('admitido', 'pagado') THEN COALESCE(admitted_at, NOW())
+               WHEN $1 IN ('pendiente', 'procesando') THEN NULL
+               ELSE admitted_at
+             END,
+             paid_at = CASE
+               WHEN $1 = 'pagado' THEN COALESCE(paid_at, NOW())
+               WHEN $1 IN ('pendiente', 'procesando', 'admitido') THEN NULL
+               ELSE paid_at
+             END,
+             cancelled_at = CASE
+               WHEN $1 = 'cancelado' THEN COALESCE(cancelled_at, NOW())
+               WHEN $1 IN ('pendiente', 'procesando', 'admitido', 'pagado') THEN NULL
+               ELSE cancelled_at
+             END
+         WHERE id = $3`,
         [status, motivo || null, id]
       );
       
@@ -193,8 +251,10 @@ async function clearAll(req, res) {
           INSERT INTO deleted_transactions (
             original_id, user_id, telegram_id, username, type, amount_usdt, amount_ars,
             identifier, status, admin_id, proof_image, motivo,
-            original_created_at, original_updated_at, deleted_by
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            original_created_at, original_updated_at,
+            original_review_started_at, original_admitted_at, original_paid_at, original_cancelled_at,
+            deleted_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         `, [
           tx.id,
           tx.user_id,
@@ -210,6 +270,10 @@ async function clearAll(req, res) {
           tx.motivo,
           tx.created_at,
           tx.updated_at,
+          tx.review_started_at,
+          tx.admitted_at,
+          tx.paid_at,
+          tx.cancelled_at,
           req.user.username || 'admin'
         ]);
       }
@@ -342,5 +406,127 @@ async function downloadDeletedPDF(req, res) {
   }
 }
 
-module.exports = { getAll, updateStatus, clearAll, getDeleted, downloadDeletedPDF };
+async function exportTransactions(req, res) {
+  try {
+    const { format = 'csv', status, type, from, to, search } = req.query;
+
+    let query = `
+      SELECT 
+        t.*,
+        u.username,
+        u.telegram_id
+      FROM transactions t
+      LEFT JOIN users u ON t.user_id = u.id
+    `;
+
+    const { conditions, params } = buildTransactionFilterClauses({ status, type, from, to, search });
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    query += ' ORDER BY t.created_at DESC';
+
+    const result = await pool.query(query, params);
+    const transactions = result.rows;
+
+    if (format === 'csv') {
+      const headers = [
+        'ID', 'Usuario', 'Tipo', 'Estado', 'Monto_USDT', 'Monto_ARS',
+        'Creado', 'En_revision', 'Admitido', 'Pagado', 'Cancelado'
+      ];
+
+      const csvRows = [headers.join(',')];
+
+      const escape = (value) => {
+        if (value === null || value === undefined) return '';
+        const str = String(value).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      transactions.forEach((tx) => {
+        csvRows.push([
+          tx.id,
+          tx.username || tx.telegram_id || '',
+          tx.type,
+          tx.status,
+          parseFloat(tx.amount_usdt || 0).toFixed(2),
+          tx.amount_ars ? parseFloat(tx.amount_ars).toFixed(2) : '',
+          tx.created_at ? new Date(tx.created_at).toISOString() : '',
+          tx.review_started_at ? new Date(tx.review_started_at).toISOString() : '',
+          tx.admitted_at ? new Date(tx.admitted_at).toISOString() : '',
+          tx.paid_at ? new Date(tx.paid_at).toISOString() : '',
+          tx.cancelled_at ? new Date(tx.cancelled_at).toISOString() : ''
+        ].map(escape).join(','));
+      });
+
+      const csvContent = csvRows.join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="transacciones.csv"');
+      return res.send(csvContent);
+    }
+
+    if (format === 'pdf') {
+      const PDFDocument = require('pdfkit');
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="transacciones.pdf"');
+
+      doc.pipe(res);
+
+      doc.fontSize(20).text('Transacciones', { align: 'center' });
+      doc.moveDown();
+
+      doc.fontSize(12).text(`Total de transacciones: ${transactions.length}`);
+      doc.moveDown();
+
+      doc.font('Helvetica-Bold');
+      doc.text('ID', 40, doc.y);
+      doc.text('Usuario', 80, doc.y);
+      doc.text('Tipo', 200, doc.y);
+      doc.text('Estado', 260, doc.y);
+      doc.text('Monto USDT', 330, doc.y);
+      doc.text('Fecha', 420, doc.y);
+      doc.moveDown();
+
+      doc.font('Helvetica');
+      let yPos = doc.y;
+      transactions.forEach((tx) => {
+        if (yPos > 720) {
+          doc.addPage();
+          doc.font('Helvetica-Bold');
+          doc.text('ID', 40, 40);
+          doc.text('Usuario', 80, 40);
+          doc.text('Tipo', 200, 40);
+          doc.text('Estado', 260, 40);
+          doc.text('Monto USDT', 330, 40);
+          doc.text('Fecha', 420, 40);
+          doc.font('Helvetica');
+          yPos = 60;
+        }
+
+        const created = tx.created_at ? new Date(tx.created_at).toLocaleString('es-AR') : '-';
+        doc.text(tx.id || '-', 40, yPos);
+        doc.text(tx.username || `ID: ${tx.telegram_id || '-'}`, 80, yPos, { width: 110 });
+        doc.text(tx.type, 200, yPos);
+        doc.text(tx.status, 260, yPos);
+        doc.text(parseFloat(tx.amount_usdt || 0).toFixed(2), 330, yPos);
+        doc.text(created, 420, yPos);
+
+        yPos += 20;
+      });
+
+      doc.end();
+      return;
+    }
+
+    return res.status(400).json({ error: 'Formato no soportado. Usa format=csv o format=pdf' });
+  } catch (error) {
+    console.error('Export transactions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = { getAll, updateStatus, clearAll, getDeleted, downloadDeletedPDF, exportTransactions };
 

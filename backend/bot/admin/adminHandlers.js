@@ -10,6 +10,40 @@ const animationManager = require('../utils/animations');
 const commandHandlers = require('../commands');
 const config = require('../../config/default.json');
 
+async function updateTransactionStatus(executor, { id, status, motivo = null, adminId = null }) {
+  const query = `
+    UPDATE transactions
+    SET status = $1,
+        motivo = COALESCE($2, motivo),
+        admin_id = COALESCE($3, admin_id),
+        updated_at = NOW(),
+        review_started_at = CASE
+          WHEN $1 IN ('procesando', 'admitido', 'pagado') THEN COALESCE(review_started_at, NOW())
+          WHEN $1 = 'pendiente' THEN NULL
+          ELSE review_started_at
+        END,
+        admitted_at = CASE
+          WHEN $1 IN ('admitido', 'pagado') THEN COALESCE(admitted_at, NOW())
+          WHEN $1 IN ('pendiente', 'procesando') THEN NULL
+          ELSE admitted_at
+        END,
+        paid_at = CASE
+          WHEN $1 = 'pagado' THEN COALESCE(paid_at, NOW())
+          WHEN $1 IN ('pendiente', 'procesando', 'admitido') THEN NULL
+          ELSE paid_at
+        END,
+        cancelled_at = CASE
+          WHEN $1 = 'cancelado' THEN COALESCE(cancelled_at, NOW())
+          WHEN $1 IN ('pendiente', 'procesando', 'admitido', 'pagado') THEN NULL
+          ELSE cancelled_at
+        END
+    WHERE id = $4
+    RETURNING *
+  `;
+
+  return executor.query(query, [status, motivo, adminId, id]);
+}
+
 const handlers = {
   async authenticate(ctx) {
     try {
@@ -72,7 +106,7 @@ const handlers = {
             'UPDATE admins SET telegram_id = $1 WHERE id = $2',
             [ctx.from.id.toString(), existingAdmin.id]
           );
-          await ctx.reply(`✅ Autenticación exitosa. Actualizado como administrador.\n\nTu telegram_id: ${ctx.from.id}\nUsername: ${existingAdmin.username}`);
+        await ctx.reply(`🔐 Autenticación verificada. Registro administrativo actualizado.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${existingAdmin.username}`);
         } else {
           // Check by telegram_id
           const existingByTelegramId = await pool.query(
@@ -86,7 +120,7 @@ const handlers = {
               'UPDATE admins SET username = $1 WHERE telegram_id = $2',
               [username || `user_${ctx.from.id}`, ctx.from.id.toString()]
             );
-            await ctx.reply(`✅ Autenticación exitosa. Ya eres administrador.\n\nTu telegram_id: ${ctx.from.id}\nUsername: ${username || 'Sin username'}`);
+        await ctx.reply(`🔐 Autenticación verificada. Su usuario ya posee permisos administrativos.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
           } else {
             // Create new admin (if username matches one in config or password is correct)
             const configAdmins = config.admins || [];
@@ -100,7 +134,7 @@ const handlers = {
                 'INSERT INTO admins (username, telegram_id) VALUES ($1, $2)',
                 [username || `user_${ctx.from.id}`, ctx.from.id.toString()]
               );
-              await ctx.reply(`✅ Autenticación exitosa. Registrado como administrador.\n\nTu telegram_id: ${ctx.from.id}\nUsername: ${username || 'Sin username'}`);
+        await ctx.reply(`🔐 Autenticación verificada. Se otorgó acceso administrativo.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
             } else {
               await ctx.reply('✅ Contraseña correcta, pero tu username no está en la lista de admins. Contacta al administrador principal.');
               return;
@@ -318,7 +352,7 @@ const handlers = {
         transactionId: transactionResult.rows[0].id
       });
       
-      await ctx.reply('📝 *Motivo de cancelación:*\n\nIngresa el motivo:', {
+      await ctx.reply('📝 *Motivo de cancelación:*\n\nIngrese el motivo:', {
         parse_mode: 'Markdown'
       });
     } catch (error) {
@@ -423,10 +457,11 @@ const handlers = {
       }
 
       // Update transaction
-      await pool.query(
-        'UPDATE transactions SET status = $1, motivo = $2, updated_at = NOW() WHERE id = $3',
-        ['cancelado', motivo, transactionId]
-      );
+      await updateTransactionStatus(pool, {
+        id: transactionId,
+        status: 'cancelado',
+        motivo
+      });
 
       await auditLogger.log(
         `@${ctx.from.username}`,
@@ -635,10 +670,10 @@ const handlers = {
           const bot = require('../bot').bot;
           await bot.telegram.sendMessage(
             user.telegram_id,
-            `⚠️ *Saldo eliminado*\n\n` +
-            `Se ha eliminado ${monto.toFixed(2)} USDT de tu cuenta.\n` +
-            `Tu saldo actual: ${nuevoSaldo.toFixed(2)} USDT\n\n` +
-            `Motivo: Saldo eliminado por administrador.`,
+            `⚠️ *Ajuste sobre su saldo*\n\n` +
+            `Se debitó ${monto.toFixed(2)} USDT de su cuenta.\n` +
+            `Saldo disponible: ${nuevoSaldo.toFixed(2)} USDT\n\n` +
+            `Motivo: Ajuste administrativo.`,
             { parse_mode: 'Markdown' }
           );
         } catch (notifyError) {
@@ -966,10 +1001,11 @@ const handlers = {
       const adminId = adminResult.rows.length > 0 ? adminResult.rows[0].id : null;
 
       // Update status to 'admitido'
-      await pool.query(
-        'UPDATE transactions SET status = $1, admin_id = $2, updated_at = NOW() WHERE id = $3',
-        ['admitido', adminId, transactionId]
-      );
+      await updateTransactionStatus(pool, {
+        id: transactionId,
+        status: 'admitido',
+        adminId
+      });
 
       // Save transaction ID in state to ask for actas
       stateManager.setState(ctx.from.id, 'admin_waiting_actas', { transactionId });
@@ -1093,9 +1129,8 @@ const handlers = {
             
             // Send start message (this will be the ONLY message in the chat)
             const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-              `Hola ${userFirstName}!\n\n` +
-              `Sistema de pagos y recargas USDT.\n\n` +
-              `Selecciona una opción:`;
+              `Estimado/a ${userFirstName},\n\n` +
+              `Gestionamos pagos corporativos con activos digitales. Seleccione la opción que desea continuar:`;
 
             const keyboard = {
               reply_markup: {
@@ -1161,9 +1196,8 @@ const handlers = {
             }
             
             const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-              `Hola ${userFirstName}!\n\n` +
-              `Sistema de pagos y recargas USDT.\n\n` +
-              `Selecciona una opción:`;
+              `Estimado/a ${userFirstName},\n\n` +
+              `Gestionamos pagos corporativos con activos digitales. Seleccione la opción que desea continuar:`;
 
             const keyboard = {
               reply_markup: {
@@ -1237,9 +1271,8 @@ const handlers = {
           }
           
           const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-            `Hola ${userFirstName}!\n\n` +
-            `Sistema de pagos y recargas USDT.\n\n` +
-            `Selecciona una opción:`;
+            `Estimado/a ${userFirstName},\n\n` +
+            `Gestionamos pagos corporativos con activos digitales. Seleccione la opción que desea continuar:`;
 
           const keyboard = {
             reply_markup: {
@@ -1361,10 +1394,11 @@ const handlers = {
         }
         
         // Update transaction status
-        await client.query(
-          'UPDATE transactions SET status = $1, admin_id = $2, updated_at = NOW() WHERE id = $3',
-          ['pagado', adminId, transactionId]
-        );
+        await updateTransactionStatus(client, {
+          id: transactionId,
+          status: 'pagado',
+          adminId
+        });
         
         await client.query('COMMIT');
       } catch (error) {
@@ -1456,13 +1490,13 @@ const handlers = {
         minute: '2-digit'
       });
       
-      const finalMessage = `*Pago Realizado!* ✅\n\n` +
-        `Tu pago de *${nombreServicio}* fue pagado correctamente. ✅\n\n` +
-        `*DATOS DE PAGO:*\n\n` +
-        `*FECHA Y HORA:* ${fechaHora}\n` +
-        `*MONTO DEL PAGO:* ${montoFormateado}\n` +
-        `*TOTAL COBRADO:* ${amountUSDT.toFixed(0)} USDT\n\n` +
-        `Muchas gracias por confiar!`;
+      const finalMessage = `*Pago realizado* ✅\n\n` +
+        `Su pago de *${nombreServicio}* fue acreditado correctamente. ✅\n\n` +
+        `*Datos de la operación:*\n\n` +
+        `*Fecha y hora:* ${fechaHora}\n` +
+        `*Monto abonado:* ${montoFormateado}\n` +
+        `*Cargo aplicado:* ${amountUSDT.toFixed(0)} USDT\n\n` +
+        `Gracias por confiar en Binopolis Pay.`;
       
       const menuKeyboard = {
         reply_markup: {
@@ -1503,11 +1537,11 @@ const handlers = {
         // Try again with simpler format - NO EXCEPTIONS
         try {
           const simpleAmountUSDT = parseFloat(txForMessage.rows[0]?.amount_usdt || 0);
-          const simpleMessage = `✅ *Pago Realizado!*\n\n` +
-            `Tu pago fue pagado correctamente.\n\n` +
-            `Monto: ${montoFormateado}\n` +
-            `Cobrado: ${simpleAmountUSDT.toFixed(0)} USDT\n\n` +
-            `Muchas gracias!`;
+          const simpleMessage = `✅ *Pago realizado*\n\n` +
+            `Su pago fue acreditado correctamente.\n\n` +
+            `Monto abonado: ${montoFormateado}\n` +
+            `Cargo aplicado: ${simpleAmountUSDT.toFixed(0)} USDT\n\n` +
+            `Gracias por utilizar Binopolis Pay.`;
           
           const simpleMenuKeyboard = {
             reply_markup: {
@@ -1740,10 +1774,11 @@ const handlers = {
         }
 
         // Update transaction
-        await client.query(
-          'UPDATE transactions SET status = $1, motivo = $2, updated_at = NOW() WHERE id = $3',
-          ['cancelado', 'Cancelado por administrador', transactionId]
-        );
+        await updateTransactionStatus(client, {
+          id: transactionId,
+          status: 'cancelado',
+          motivo: 'Cancelado por administrador'
+        });
         
         await client.query('COMMIT');
       } catch (error) {
@@ -1838,7 +1873,7 @@ const handlers = {
       console.log('📝 handleAdminActas called with text:', actasText?.substring(0, 100));
       
       if (!actasText || actasText.trim().length === 0) {
-        await ctx.reply('❌ El texto no puede estar vacío. Por favor, ingresa el texto de las actas.');
+        await ctx.reply('❌ El texto no puede estar vacío. Ingrese el detalle que se enviará al cliente.');
         return;
       }
       
@@ -1873,11 +1908,19 @@ const handlers = {
       const animationManager = require('../utils/animations');
       
       try {
-        // Update transaction status to 'pagado' (pago exitoso)
-        await pool.query(
-          'UPDATE transactions SET status = $1, updated_at = NOW() WHERE id = $2',
-          ['pagado', transactionId]
+        // Obtener admin ID
+        const adminLookup = await pool.query(
+          'SELECT id FROM admins WHERE telegram_id = $1 OR username = $2 LIMIT 1',
+          [ctx.from.id, ctx.from.username ? `@${ctx.from.username}` : null]
         );
+        const adminId = adminLookup.rows.length > 0 ? adminLookup.rows[0].id : null;
+
+        // Update transaction status to 'pagado' (pago exitoso)
+        await updateTransactionStatus(pool, {
+          id: transactionId,
+          status: 'pagado',
+          adminId
+        });
         
         // Get transaction details for progress bar
         const txForProgress = await pool.query(
@@ -1908,7 +1951,7 @@ const handlers = {
           await animationManager.showProgress(
             { telegram: botInstance.telegram, chat: { id: userChatId } },
             userMessageId,
-            '✅ Orden enviada\n\nTu pago ha sido recibido.\nTe notificaremos cuando sea procesado.',
+            '✅ Orden enviada\n\nSu pago fue recibido correctamente.\nLe notificaremos cuando finalice la gestión.',
             2000,
             20 // 20 steps for smoother animation
           );
@@ -1964,13 +2007,13 @@ const handlers = {
           minute: '2-digit'
         });
         
-        const finalMessage = `*Pago Realizado!* ✅\n\n` +
-          `Tu pago de *${nombreServicio}* fue pagado correctamente. ✅\n\n` +
-          `*DATOS DE PAGO:*\n\n` +
-          `*FECHA Y HORA:* ${fechaHora}\n` +
-          `*MONTO DEL PAGO:* ${montoFormateado}\n` +
-          `*TOTAL COBRADO:* ${txForProgress.rows[0]?.amount_usdt.toFixed(0) || '0'} USDT\n\n` +
-          `Muchas gracias por confiar!`;
+        const finalMessage = `*Pago realizado* ✅\n\n` +
+          `Su pago de *${nombreServicio}* fue acreditado correctamente. ✅\n\n` +
+          `*Datos de la operación:*\n\n` +
+          `*Fecha y hora:* ${fechaHora}\n` +
+          `*Monto abonado:* ${montoFormateado}\n` +
+          `*Cargo aplicado:* ${txForProgress.rows[0]?.amount_usdt.toFixed(0) || '0'} USDT\n\n` +
+          `Gracias por confiar en Binopolis Pay.`;
         
         const menuKeyboard = {
           reply_markup: {
@@ -2075,10 +2118,11 @@ const handlers = {
         );
 
         // Update transaction status
-        await client.query(
-          'UPDATE transactions SET status = $1, admin_id = $2, updated_at = NOW() WHERE id = $3',
-          ['pagado', adminId, transactionId]
-        );
+        await updateTransactionStatus(client, {
+          id: transactionId,
+          status: 'pagado',
+          adminId
+        });
 
         await client.query('COMMIT');
         
@@ -2216,10 +2260,12 @@ const handlers = {
       const adminId = adminResult.rows.length > 0 ? adminResult.rows[0].id : null;
 
       // Update transaction status
-      await pool.query(
-        'UPDATE transactions SET status = $1, motivo = $2, admin_id = $3, updated_at = NOW() WHERE id = $4',
-        ['cancelado', 'Rechazado por administrador', adminId, transactionId]
-      );
+      await updateTransactionStatus(pool, {
+        id: transactionId,
+        status: 'cancelado',
+        motivo: 'Rechazado por administrador',
+        adminId
+      });
 
       await auditLogger.log(
         `@${ctx.from.username || 'admin'}`,
@@ -2230,7 +2276,7 @@ const handlers = {
       // Notify user
       const bot = require('../bot').bot;
       await notificationService.notifyUser(bot, transaction.telegram_id, 'pago_cancelado', {
-        motivo: 'Tu comprobante fue rechazado por un administrador. Por favor verifica y vuelve a intentar.'
+        motivo: 'El comprobante fue rechazado por un administrador. Verifique la información e intente nuevamente.'
       });
 
       // ELIMINAR el mensaje (que incluye la foto) del grupo de órdenes (rechazado)

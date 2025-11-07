@@ -114,6 +114,7 @@ bot.command('comandosgrupo', commandHandlers.comandosgrupo);
 bot.command('comandosop', commandHandlers.comandosop);
 bot.command('politicas', commandHandlers.politicas);
 bot.command('banear', adminHandlers.banear);
+bot.command('notificaciones', commandHandlers.notificaciones);
 bot.command('noticia', adminHandlers.noticia);
 
 // Register callbacks
@@ -231,6 +232,10 @@ bot.on('callback_query', async (ctx) => {
       await adminHandlers.handleAdminLogs(ctx);
     } else if (data === 'admin_back') {
       await adminHandlers.showAdminMenu(ctx);
+    } else if (data.startsWith('notif_pref_')) {
+      const preference = data.replace('notif_pref_', '');
+      await commandHandlers.setNotificationPreference(ctx, preference);
+      return;
     } else {
       await ctx.answerCbQuery('Acción no reconocida', true);
     }
@@ -265,6 +270,9 @@ bot.on('text', async (ctx) => {
     return;
   } else if (text === '📊 HISTORIAL' || text === 'HISTORIAL') {
     await commandHandlers.historial(ctx);
+    return;
+  } else if (text === '🔔 NOTIFICACIONES' || text === 'NOTIFICACIONES') {
+    await commandHandlers.notificaciones(ctx);
     return;
   } else if (text === '🏠 MENU PRINCIPAL' || text === 'MENU PRINCIPAL') {
     await commandHandlers.start(ctx);
@@ -326,7 +334,8 @@ async function startBot() {
               { command: 'saldo', description: '💰 VER SALDO - Ver saldo disponible' },
               { command: 'cargar', description: '🪙 CARGAR - Cargar saldo a tu cuenta' },
               { command: 'pagar', description: '💸 PAGAR - Realizar un pago' },
-              { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' }
+              { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' },
+              { command: 'notificaciones', description: '🔔 Configurar notificaciones' }
             ]);
       console.log('✅ Bot commands menu configured');
     } catch (cmdError) {
