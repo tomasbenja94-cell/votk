@@ -44,6 +44,9 @@ router.get('/api/wallet-transactions', authenticateToken, walletTransactionsCont
 
 router.get('/api/transactions', authenticateToken, transactionsController.getAll);
 router.put('/api/transactions/:id/status', authenticateToken, transactionsController.updateStatus);
+router.post('/api/transactions/clear-all', authenticateToken, transactionsController.clearAll);
+router.get('/api/transactions/deleted', authenticateToken, transactionsController.getDeleted);
+router.get('/api/transactions/deleted/pdf', authenticateToken, transactionsController.downloadDeletedPDF);
 
 module.exports = router;
 

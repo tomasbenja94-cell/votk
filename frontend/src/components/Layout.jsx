@@ -90,6 +90,13 @@ function Layout() {
             📋 Transacciones (Acciones)
           </Link>
           <Link
+            to="/deleted-transactions"
+            onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
+            className="block px-4 md:px-6 py-2 md:py-3 hover:bg-gray-700 transition-colors text-sm md:text-base"
+          >
+            🗑️ Guardado Eliminado
+          </Link>
+          <Link
             to="/config"
             onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
             className="block px-4 md:px-6 py-2 md:py-3 hover:bg-gray-700 transition-colors text-sm md:text-base"

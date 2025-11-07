@@ -119,7 +119,10 @@ export const walletTransactionsAPI = {
 
 export const transactionsAPI = {
   getAll: (params) => api.get('/api/transactions', { params }),
-  updateStatus: (id, status, motivo) => api.put(`/api/transactions/${id}/status`, { status, motivo })
+  updateStatus: (id, status, motivo) => api.put(`/api/transactions/${id}/status`, { status, motivo }),
+  clearAll: () => api.post('/api/transactions/clear-all'),
+  getDeleted: (params) => api.get('/api/transactions/deleted', { params }),
+  downloadDeletedPDF: (params) => api.get('/api/transactions/deleted/pdf', { params, responseType: 'blob' })
 };
 
 export default api;

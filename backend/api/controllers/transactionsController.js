@@ -165,5 +165,182 @@ async function updateStatus(req, res) {
   }
 }
 
-module.exports = { getAll, updateStatus };
+async function clearAll(req, res) {
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      
+      // Get all transactions
+      const allTransactions = await client.query(`
+        SELECT 
+          t.*,
+          u.telegram_id,
+          u.username
+        FROM transactions t
+        LEFT JOIN users u ON t.user_id = u.id
+        ORDER BY t.created_at DESC
+      `);
+      
+      if (allTransactions.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.json({ message: 'No hay transacciones para limpiar', deleted: 0 });
+      }
+      
+      // Move all transactions to deleted_transactions
+      for (const tx of allTransactions.rows) {
+        await client.query(`
+          INSERT INTO deleted_transactions (
+            original_id, user_id, telegram_id, username, type, amount_usdt, amount_ars,
+            identifier, status, admin_id, proof_image, motivo,
+            original_created_at, original_updated_at, deleted_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `, [
+          tx.id,
+          tx.user_id,
+          tx.telegram_id,
+          tx.username,
+          tx.type,
+          tx.amount_usdt,
+          tx.amount_ars,
+          tx.identifier,
+          tx.status,
+          tx.admin_id,
+          tx.proof_image,
+          tx.motivo,
+          tx.created_at,
+          tx.updated_at,
+          req.user.username || 'admin'
+        ]);
+      }
+      
+      // Delete all transactions
+      await client.query('DELETE FROM transactions');
+      
+      await client.query('COMMIT');
+      
+      // Log audit
+      await auditLogger.log(
+        req.user.username,
+        'clear_all_transactions',
+        { count: allTransactions.rows.length }
+      );
+      
+      res.json({
+        message: `Se limpiaron ${allTransactions.rows.length} transacciones`,
+        deleted: allTransactions.rows.length
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Clear all transactions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+async function getDeleted(req, res) {
+  try {
+    const { month, year } = req.query;
+    
+    let query = 'SELECT * FROM deleted_transactions WHERE 1=1';
+    const params = [];
+    
+    if (month && year) {
+      query += ` AND EXTRACT(MONTH FROM deleted_at) = $${params.length + 1} AND EXTRACT(YEAR FROM deleted_at) = $${params.length + 2}`;
+      params.push(parseInt(month), parseInt(year));
+    }
+    
+    query += ' ORDER BY deleted_at DESC';
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      transactions: result.rows,
+      total: result.rows.length
+    });
+  } catch (error) {
+    console.error('Get deleted transactions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+async function downloadDeletedPDF(req, res) {
+  try {
+    const { month, year } = req.query;
+    
+    let query = 'SELECT * FROM deleted_transactions WHERE 1=1';
+    const params = [];
+    
+    if (month && year) {
+      query += ` AND EXTRACT(MONTH FROM deleted_at) = $${params.length + 1} AND EXTRACT(YEAR FROM deleted_at) = $${params.length + 2}`;
+      params.push(parseInt(month), parseInt(year));
+    }
+    
+    query += ' ORDER BY deleted_at DESC';
+    
+    const result = await pool.query(query, params);
+    
+    // Generate simple text-based PDF (using text/plain for now, can upgrade to pdfkit later)
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument();
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="movimientos-eliminados-${month || 'all'}-${year || 'all'}.pdf"`);
+    
+    doc.pipe(res);
+    
+    doc.fontSize(20).text('Movimientos Eliminados', { align: 'center' });
+    doc.moveDown();
+    
+    if (month && year) {
+      doc.fontSize(14).text(`Mes: ${month}/${year}`, { align: 'center' });
+      doc.moveDown();
+    }
+    
+    doc.fontSize(12);
+    doc.text(`Total de movimientos: ${result.rows.length}`);
+    doc.moveDown();
+    
+    // Table header
+    doc.font('Helvetica-Bold');
+    doc.text('Fecha', 50, doc.y);
+    doc.text('Usuario', 150, doc.y);
+    doc.text('Tipo', 250, doc.y);
+    doc.text('Monto USDT', 320, doc.y);
+    doc.text('Monto ARS', 420, doc.y);
+    doc.text('Estado', 520, doc.y);
+    doc.moveDown();
+    
+    // Table rows
+    doc.font('Helvetica');
+    let yPos = doc.y;
+    result.rows.forEach((tx, index) => {
+      if (yPos > 700) {
+        doc.addPage();
+        yPos = 50;
+      }
+      
+      const date = new Date(tx.deleted_at).toLocaleDateString('es-AR');
+      doc.text(date || '-', 50, yPos);
+      doc.text(tx.username || `ID: ${tx.telegram_id}` || '-', 150, yPos);
+      doc.text(tx.type || '-', 250, yPos);
+      doc.text(parseFloat(tx.amount_usdt || 0).toFixed(2), 320, yPos);
+      doc.text(tx.amount_ars ? `$${parseFloat(tx.amount_ars).toLocaleString('es-AR')}` : '-', 420, yPos);
+      doc.text(tx.status || '-', 520, yPos);
+      
+      yPos += 20;
+    });
+    
+    doc.end();
+  } catch (error) {
+    console.error('Download deleted PDF error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = { getAll, updateStatus, clearAll, getDeleted, downloadDeletedPDF };
 

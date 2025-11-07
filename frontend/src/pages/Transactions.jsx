@@ -45,6 +45,27 @@ function Transactions() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('⚠️ ¿Estás seguro de limpiar TODAS las transacciones?\n\nEsto moverá todas las transacciones a "GUARDADO ELIMINADO" y dejará la lista en 0.\n\nEsta acción NO se puede deshacer.')) {
+      return;
+    }
+
+    const confirmText = prompt('Escribe "LIMPIAR" para confirmar:');
+    if (confirmText !== 'LIMPIAR') {
+      alert('❌ Confirmación incorrecta. Operación cancelada.');
+      return;
+    }
+
+    try {
+      const response = await transactionsAPI.clearAll();
+      alert(`✅ ${response.data.message || 'Transacciones limpiadas exitosamente'}`);
+      await fetchTransactions();
+    } catch (error) {
+      console.error('Error clearing transactions:', error);
+      alert('❌ Error al limpiar transacciones: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'pagado':
@@ -81,12 +102,20 @@ function Transactions() {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
         <h1 className="text-2xl md:text-3xl font-bold">Transacciones</h1>
-        <button
-          onClick={fetchTransactions}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm md:text-base w-full sm:w-auto"
-        >
-          🔄 Actualizar
-        </button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <button
+            onClick={fetchTransactions}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm md:text-base flex-1 sm:flex-none"
+          >
+            🔄 Actualizar
+          </button>
+          <button
+            onClick={handleClearAll}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm md:text-base flex-1 sm:flex-none"
+          >
+            🗑️ Limpiar Todo
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
