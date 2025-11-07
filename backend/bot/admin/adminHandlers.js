@@ -1466,11 +1466,9 @@ const handlers = {
       
       const menuKeyboard = {
         reply_markup: {
-          keyboard: [
-            [{ text: '🏠 MENU PRINCIPAL' }]
-          ],
-          resize_keyboard: true,
-          one_time_keyboard: false
+          inline_keyboard: [
+            [{ text: '🏠 VOLVER AL MENU', callback_data: 'pago_completado_menu' }]
+          ]
         }
       };
       
@@ -1511,11 +1509,20 @@ const handlers = {
             `Cobrado: ${simpleAmountUSDT.toFixed(0)} USDT\n\n` +
             `Muchas gracias!`;
           
+          const simpleMenuKeyboard = {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🏠 VOLVER AL MENU', callback_data: 'pago_completado_menu' }]
+              ]
+            }
+          };
+          
           sentMessage = await bot.telegram.sendMessage(
             transaction.telegram_id,
             simpleMessage,
             { 
               parse_mode: 'Markdown',
+              reply_markup: simpleMenuKeyboard.reply_markup,
               disable_notification: false
             }
           );
@@ -1603,7 +1610,7 @@ const handlers = {
         }
       }
       
-      // Now try to update/delete user's "Orden enviada" message if it exists (non-blocking)
+      // Delete user's "Orden enviada" message if it exists (no progress bar)
       if (txForMessage.rows.length > 0 && txForMessage.rows[0].proof_image) {
         const proofImage = txForMessage.rows[0].proof_image;
         if (proofImage.startsWith('user_message|')) {
@@ -1614,16 +1621,7 @@ const handlers = {
             
             if (userChatId && userMessageId) {
               try {
-                // Show progress bar that reaches 100%
-                await animationManager.showProgress(
-                  { telegram: bot.telegram, chat: { id: userChatId } },
-                  userMessageId,
-                  '✅ Orden enviada\n\nTu pago ha sido recibido.\nTe notificaremos cuando sea procesado.',
-                  2000,
-                  20
-                );
-                
-                // Delete the "Orden enviada" message
+                // Delete the "Orden enviada" message directly (no progress bar)
                 await bot.telegram.deleteMessage(userChatId, userMessageId);
                 console.log(`✅ Deleted user message ${userMessageId} for transaction ${transactionId}`);
               } catch (deleteError) {
