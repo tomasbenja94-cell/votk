@@ -51,7 +51,8 @@ const commands = {
             [{ text: 'PAGAR', callback_data: 'action_pagar' }],
             [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }],
             [{ text: 'SALDO', callback_data: 'action_saldo' }],
-            [{ text: 'HISTORIAL', callback_data: 'action_historial' }]
+            [{ text: 'HISTORIAL', callback_data: 'action_historial' }],
+            [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }]
           ]
         }
       };
@@ -154,53 +155,11 @@ const commands = {
 
   async pagarMultas(ctx) {
     try {
-      // Limpiar mensajes anteriores
-      await chatManager.cleanChat(ctx, ctx.from.id, 1);
-
-      // Check if user has any balance first
-      const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
-      const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
-      
-      if (saldoUsdt <= 0) {
-        const noBalanceMsg = `❌ *No tienes saldo disponible*\n\n` +
-          `Tu saldo actual: ${saldoUsdt.toFixed(2)} USDT\n\n` +
-          `Primero debes cargar saldo usando /cargar`;
-        
-        const keyboard = {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Regresar', callback_data: 'action_back' }]
-            ]
-          }
-        };
-
-        const sentMessage = await ctx.replyWithMarkdown(noBalanceMsg, keyboard);
-        chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
-        return;
-      }
-      
-      const message = await messageService.getMessage('pagar_multas_menu');
-
-      const keyboard = {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: 'MULTAS PBA', callback_data: 'action_multas_pba' }],
-            [{ text: 'MULTAS ENTRE RÍOS', callback_data: 'action_multas_entre_rios' }],
-            [{ text: 'MULTAS CABA', callback_data: 'action_multas_caba' }],
-            [{ text: 'MULTAS CORRIENTES', callback_data: 'action_multas_corrientes' }],
-            [{ text: 'MULTAS SANTA FE', callback_data: 'action_multas_santa_fe' }],
-            [{ text: 'PAGAR OTRA MULTA', callback_data: 'action_multas_otra' }],
-            [{ text: 'Regresar', callback_data: 'action_pagar' }]
-          ]
-        }
-      };
-
-      const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
-      chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+      await ctx.reply('@binopolisPAY_bot');
+      await ctx.answerCbQuery();
     } catch (error) {
       console.error('Error in pagarMultas:', error);
-      const errorMsg = await messageService.getMessage('pagar_error');
-      ctx.reply(errorMsg);
+      await ctx.answerCbQuery('❌ Error', true);
     }
   },
 
