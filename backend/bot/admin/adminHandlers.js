@@ -2477,8 +2477,8 @@ const handlers = {
        // Verificar que está en un grupo de órdenes o en privado
        const chatType = ctx.chat.type;
        const isGroup = chatType === 'group' || chatType === 'supergroup';
-       const isPrivate = chatType === 'private';
-@@
+      const isPrivate = chatType === 'private';
+
        stateManager.setState(ctx.from.id, 'admin_sending_noticia');
      } catch (error) {
        console.error('Error in /noticia:', error);
