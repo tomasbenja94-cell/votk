@@ -52,7 +52,7 @@ const commands = {
             [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }],
             [{ text: 'SALDO', callback_data: 'action_saldo' }],
             [{ text: 'HISTORIAL', callback_data: 'action_historial' }],
-            [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }]
+            [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }]
           ]
         }
       };
@@ -596,7 +596,7 @@ const commands = {
             [{ text: 'PAGAR MACRO / PLUSPAGOS', callback_data: 'action_pagar_macro' }],
             [{ text: 'PAGAR RENTAS CÓRDOBA', callback_data: 'action_pagar_rentas' }],
             [{ text: 'PAGAR OTRO SERVICIO', callback_data: 'action_pagar_otra' }],
-            [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }],
+            [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }],
             [{ text: 'Regresar', callback_data: 'action_back' }]
           ]
         }

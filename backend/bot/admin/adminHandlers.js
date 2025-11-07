@@ -1100,7 +1100,7 @@ const handlers = {
             const keyboard = {
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }],
+                  [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }],
                   [{ text: 'PAGAR MACRO / PLUS PAGOS', callback_data: 'action_pagar_macro' }],
                   [{ text: 'VER SALDO', callback_data: 'action_saldo' }],
                   [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }]
@@ -1168,7 +1168,7 @@ const handlers = {
             const keyboard = {
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }],
+                  [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }],
                   [{ text: 'PAGAR MACRO / PLUS PAGOS', callback_data: 'action_pagar_macro' }],
                   [{ text: 'VER SALDO', callback_data: 'action_saldo' }],
                   [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }]
@@ -1244,7 +1244,7 @@ const handlers = {
           const keyboard = {
             reply_markup: {
               inline_keyboard: [
-                [{ text: 'PAGAR MULTAS', callback_data: 'action_pagar_multas' }],
+                [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }],
                 [{ text: 'PAGAR MACRO / PLUS PAGOS', callback_data: 'action_pagar_macro' }],
                 [{ text: 'VER SALDO', callback_data: 'action_saldo' }],
                 [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }]
