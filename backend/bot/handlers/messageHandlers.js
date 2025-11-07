@@ -55,6 +55,7 @@ const handlers = {
         await this.handlePagarCABAPatente(ctx, text);
         break;
       case 'pagar_otra_waiting_servicio':
+      case 'pagar_otra_multa_waiting_servicio':
         await this.handlePagarOtraServicio(ctx, text);
         break;
       case 'pagar_rentas_automotor_waiting_patente':
