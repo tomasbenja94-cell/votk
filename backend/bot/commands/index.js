@@ -671,7 +671,13 @@ const commands = {
         return;
       }
 
-      const message = await messageService.getMessage('pagar_menu');
+      const message = `💼 *Gestión de pagos*\n\n` +
+        `¿Qué operación desea realizar?\n\n` +
+        `*Comandos disponibles:*\n` +
+        `/multas - Gestionar pagos de multas\n` +
+        `/macro - Operaciones Macro / PlusPagos\n` +
+        `/rentas - Rentas Córdoba\n` +
+        `/otroservicio - Pago de otros servicios`;
 
       const keyboard = {
         reply_markup: {
