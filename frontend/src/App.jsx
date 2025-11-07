@@ -10,6 +10,7 @@ import Messages from './pages/Messages';
 import WalletTransactions from './pages/WalletTransactions';
 import Transactions from './pages/Transactions';
 import DeletedTransactions from './pages/DeletedTransactions';
+import Admins from './pages/Admins';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -33,6 +34,7 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="wallets" element={<Wallets />} />
+          <Route path="admins" element={<Admins />} />
           <Route path="config" element={<Config />} />
           <Route path="code" element={<CodeViewer />} />
           <Route path="messages" element={<Messages />} />

@@ -1,5 +1,5 @@
 const pool = require('../../db/connection');
-const { isAdmin, getOrCreateUser, formatCurrency, formatARS } = require('../../utils/helpers');
+const { isAdmin, getOrCreateUser, formatCurrency, formatARS, getAdminContext } = require('../../utils/helpers');
 const priceService = require('../../services/priceService');
 const stateManager = require('../handlers/stateManager');
 const auditLogger = require('../../services/auditLogger');
@@ -9,6 +9,82 @@ const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
 const commandHandlers = require('../commands');
 const config = require('../../config/default.json');
+
+const ADMIN_PERMISSIONS = {
+  superadmin: {
+    access: true,
+    processPayments: true,
+    manageWallets: true,
+    manageUsers: true,
+    manageConfig: true,
+    manageBalance: true,
+    broadcast: true
+  },
+  operador: {
+    access: true,
+    processPayments: true,
+    manageWallets: false,
+    manageUsers: false,
+    manageConfig: false,
+    manageBalance: false,
+    broadcast: false
+  },
+  auditor: {
+    access: true,
+    processPayments: false,
+    manageWallets: false,
+    manageUsers: false,
+    manageConfig: false,
+    manageBalance: false,
+    broadcast: false
+  }
+};
+
+function isCallback(ctx) {
+  return ctx.updateType === 'callback_query';
+}
+
+async function notifyPermissionDenied(ctx, message) {
+  const text = message || '❌ Permisos insuficientes para realizar esta acción.';
+  if (isCallback(ctx)) {
+    try {
+      await ctx.answerCbQuery(text, { show_alert: true });
+    } catch (err) {
+      console.warn('Error sending callback permission denial:', err.message);
+    }
+  } else {
+    await ctx.reply(text);
+  }
+}
+
+async function ensureAdminPermission(ctx, permissionKey = 'access') {
+  try {
+    const admin = await getAdminContext(ctx.from?.id, ctx.from?.username);
+    if (!admin) {
+      await notifyPermissionDenied(ctx, '❌ Solo administradores autorizados.');
+      return null;
+    }
+
+    if (admin.active === false) {
+      await notifyPermissionDenied(ctx, '❌ Tu cuenta de administrador está inactiva. Contacta a un superadministrador.');
+      return null;
+    }
+
+    const role = admin.role || 'superadmin';
+    const permissions = ADMIN_PERMISSIONS[role] || ADMIN_PERMISSIONS.superadmin;
+
+    if (permissionKey && !permissions[permissionKey]) {
+      await notifyPermissionDenied(ctx);
+      return null;
+    }
+
+    return { admin, permissions };
+  } catch (error) {
+    console.error('Error ensuring admin permission:', error);
+    await notifyPermissionDenied(ctx);
+    return null;
+  }
+}
 
 async function updateTransactionStatus(executor, { id, status, motivo = null, adminId = null }) {
   const query = `
@@ -103,10 +179,10 @@ const handlers = {
         if (existingAdmin) {
           // Update telegram_id if missing or different
           await pool.query(
-            'UPDATE admins SET telegram_id = $1 WHERE id = $2',
+            'UPDATE admins SET telegram_id = $1, active = true WHERE id = $2',
             [ctx.from.id.toString(), existingAdmin.id]
           );
-        await ctx.reply(`🔐 Autenticación verificada. Registro administrativo actualizado.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${existingAdmin.username}`);
+          await ctx.reply(`🔐 Autenticación verificada. Registro administrativo actualizado.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${existingAdmin.username}`);
         } else {
           // Check by telegram_id
           const existingByTelegramId = await pool.query(
@@ -117,10 +193,10 @@ const handlers = {
           if (existingByTelegramId.rows.length > 0) {
             // Update username if different
             await pool.query(
-              'UPDATE admins SET username = $1 WHERE telegram_id = $2',
+              'UPDATE admins SET username = $1, active = true WHERE telegram_id = $2',
               [username || `user_${ctx.from.id}`, ctx.from.id.toString()]
             );
-        await ctx.reply(`🔐 Autenticación verificada. Su usuario ya posee permisos administrativos.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
+            await ctx.reply(`🔐 Autenticación verificada. Su usuario ya posee permisos administrativos.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
           } else {
             // Create new admin (if username matches one in config or password is correct)
             const configAdmins = config.admins || [];
@@ -131,10 +207,14 @@ const handlers = {
             if (usernameMatches || !normalizedUsername) {
               // Add as new admin
               await pool.query(
-                'INSERT INTO admins (username, telegram_id) VALUES ($1, $2)',
-                [username || `user_${ctx.from.id}`, ctx.from.id.toString()]
+                'INSERT INTO admins (username, telegram_id, role, active) VALUES ($1, $2, $3, true)',
+                [
+                  username || `user_${ctx.from.id}`,
+                  ctx.from.id.toString(),
+                  usernameMatches ? 'superadmin' : 'operador'
+                ]
               );
-        await ctx.reply(`🔐 Autenticación verificada. Se otorgó acceso administrativo.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
+              await ctx.reply(`🔐 Autenticación verificada. Se otorgó acceso administrativo.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
             } else {
               await ctx.reply('✅ Contraseña correcta, pero tu username no está en la lista de admins. Contacta al administrador principal.');
               return;
@@ -142,8 +222,13 @@ const handlers = {
           }
         }
         
-        // Show admin menu
-        await handlers.showAdminMenu(ctx);
+        // Show admin menu with context
+        const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+        if (adminContext) {
+          await handlers.showAdminMenu(ctx, adminContext);
+        } else {
+          await ctx.reply('❌ No fue posible determinar tu rol de administrador. Contacta al superadministrador.');
+        }
       } catch (error) {
         console.error('Error adding/updating admin:', error);
         console.error('Error stack:', error.stack);
@@ -172,21 +257,37 @@ const handlers = {
     }
   },
 
-  async showAdminMenu(ctx) {
+  async showAdminMenu(ctx, adminContext = null) {
     try {
+      const context = adminContext || await ensureAdminPermission(ctx, 'access');
+      if (!context) {
+        return;
+      }
+
+      const { admin, permissions } = context;
+      const inlineKeyboard = [];
+
+      if (permissions.manageUsers) {
+        inlineKeyboard.push([{ text: 'Usuarios', callback_data: 'admin_users' }]);
+      }
+
+      if (permissions.manageWallets) {
+        inlineKeyboard.push([{ text: 'Wallets', callback_data: 'admin_wallets' }]);
+      }
+
+      inlineKeyboard.push([{ text: 'Estadísticas', callback_data: 'admin_stats' }]);
+      inlineKeyboard.push([{ text: 'Logs', callback_data: 'admin_logs' }]);
+
       const keyboard = {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Usuarios', callback_data: 'admin_users' }],
-            [{ text: 'Wallets', callback_data: 'admin_wallets' }],
-            [{ text: 'Estadísticas', callback_data: 'admin_stats' }],
-            [{ text: 'Logs', callback_data: 'admin_logs' }]
-          ]
+          inline_keyboard: inlineKeyboard
         }
       };
 
-      const message = '🔐 *Panel de Administración*\n\nSelecciona una opción:';
-      
+      const message = `🔐 *Panel de Administración*\n\n` +
+        `Rol asignado: *${(admin.role || 'superadmin').toUpperCase()}*\n\n` +
+        `Selecciona una opción:`;
+
       await ctx.replyWithMarkdown(message, keyboard);
     } catch (error) {
       console.error('Error in showAdminMenu:', error);
@@ -224,17 +325,8 @@ const handlers = {
 
   async cargar(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in cargar:', error);
-        await ctx.reply('❌ Error de conexión. Intenta nuevamente.');
-        return;
-      }
-      
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
+      const adminContext = await ensureAdminPermission(ctx, 'manageBalance');
+      if (!adminContext) {
         return;
       }
 
@@ -284,7 +376,7 @@ const handlers = {
 
       // Log audit
       await auditLogger.log(
-        `@${ctx.from.username}`,
+        adminContext.admin.username || `@${ctx.from.username || 'admin'}`,
         'cargar_saldo',
         { username, amount }
       );
@@ -318,20 +410,11 @@ const handlers = {
 
   async cancelar(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in cancelar:', error);
-        await ctx.reply('❌ Error de conexión. Intenta nuevamente.');
+      const adminContext = await ensureAdminPermission(ctx, 'processPayments');
+      if (!adminContext) {
         return;
       }
       
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
-        return;
-      }
-
       // For now, cancel last pending transaction
       // In production, you might want to select which transaction to cancel
       const transactionResult = await pool.query(
@@ -363,20 +446,11 @@ const handlers = {
 
   async setGroupChatId(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in setGroupChatId:', error);
-        await ctx.reply('❌ Error de conexión. Intenta nuevamente.');
+      const adminContext = await ensureAdminPermission(ctx, 'manageConfig');
+      if (!adminContext) {
         return;
       }
       
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
-        return;
-      }
-
       // Get chat_id from the message (if sent in a group)
       const chatId = ctx.chat.id;
       const chatType = ctx.chat.type;
@@ -412,20 +486,11 @@ const handlers = {
 
   async handleCancelarMotivo(ctx, motivo) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in handleCancelarMotivo:', error);
-        await ctx.reply('❌ Error de conexión. Intenta nuevamente.');
+      const adminContext = await ensureAdminPermission(ctx, 'processPayments');
+      if (!adminContext) {
         return;
       }
       
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
-        return;
-      }
-
       const data = stateManager.getData(ctx.from.id);
       const transactionId = data.transactionId;
 
@@ -501,9 +566,8 @@ const handlers = {
 
   async wallet(ctx) {
     try {
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
+      const adminContext = await ensureAdminPermission(ctx, 'access');
+      if (!adminContext) {
         return;
       }
 
@@ -533,10 +597,8 @@ const handlers = {
         return;
       }
 
-      // Verificar que el usuario es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores pueden usar este comando.');
+      const adminContext = await ensureAdminPermission(ctx, 'manageBalance');
+      if (!adminContext) {
         return;
       }
 
@@ -695,17 +757,8 @@ const handlers = {
 
   async logs(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in logs:', error);
-        await ctx.reply('❌ Error de conexión. Intenta nuevamente.');
-        return;
-      }
-      
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
+      const adminContext = await ensureAdminPermission(ctx, 'access');
+      if (!adminContext) {
         return;
       }
 
@@ -733,20 +786,11 @@ const handlers = {
 
   async handleAdminUsers(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin:', error);
-        await ctx.answerCbQuery('❌ Error de conexión', true);
+      const adminContext = await ensureAdminPermission(ctx, 'manageUsers');
+      if (!adminContext) {
         return;
       }
       
-      if (!isUserAdmin) {
-        await ctx.answerCbQuery('❌ Solo administradores', true);
-        return;
-      }
-
       await ctx.answerCbQuery('👥 Obteniendo usuarios...');
       
       const usersResult = await pool.query(
@@ -783,17 +827,8 @@ const handlers = {
 
   async handleAdminWallets(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin:', error);
-        await ctx.answerCbQuery('❌ Error de conexión', true);
-        return;
-      }
-      
-      if (!isUserAdmin) {
-        await ctx.answerCbQuery('❌ Solo administradores', true);
+      const adminContext = await ensureAdminPermission(ctx, 'manageWallets');
+      if (!adminContext) {
         return;
       }
 
@@ -830,17 +865,8 @@ const handlers = {
 
   async handleAdminStats(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin:', error);
-        await ctx.answerCbQuery('❌ Error de conexión', true);
-        return;
-      }
-      
-      if (!isUserAdmin) {
-        await ctx.answerCbQuery('❌ Solo administradores', true);
+      const adminContext = await ensureAdminPermission(ctx, 'access');
+      if (!adminContext) {
         return;
       }
 
@@ -875,17 +901,8 @@ const handlers = {
 
   async handleAdminLogs(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin:', error);
-        await ctx.answerCbQuery('❌ Error de conexión', true);
-        return;
-      }
-      
-      if (!isUserAdmin) {
-        await ctx.answerCbQuery('❌ Solo administradores', true);
+      const adminContext = await ensureAdminPermission(ctx, 'access');
+      if (!adminContext) {
         return;
       }
 
@@ -928,17 +945,8 @@ const handlers = {
 
   async config(ctx) {
     try {
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in config:', error);
-        await ctx.reply('❌ Error de conexión. Intenta nuevamente.');
-        return;
-      }
-      
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo administradores.');
+      const adminContext = await ensureAdminPermission(ctx, 'manageConfig');
+      if (!adminContext) {
         return;
       }
 
@@ -961,6 +969,11 @@ const handlers = {
 
   async handlePagoAdmitir(ctx) {
     try {
+      const adminContext = await ensureAdminPermission(ctx, 'processPayments');
+      if (!adminContext) {
+        return;
+      }
+
       const data = ctx.callbackQuery.data;
       const transactionId = parseInt(data.split('_')[2]);
       
@@ -994,11 +1007,7 @@ const handlers = {
       }
 
       // Get admin ID from admins table
-      const adminResult = await pool.query(
-        'SELECT id FROM admins WHERE telegram_id = $1 OR username = $2 LIMIT 1',
-        [ctx.from.id, ctx.from.username ? `@${ctx.from.username}` : null]
-      );
-      const adminId = adminResult.rows.length > 0 ? adminResult.rows[0].id : null;
+      const adminId = adminContext.admin.id || null;
 
       // Update status to 'admitido'
       await updateTransactionStatus(pool, {
@@ -1870,6 +1879,12 @@ const handlers = {
 
   async handleAdminActas(ctx, actasText) {
     try {
+      const adminContext = await ensureAdminPermission(ctx, 'processPayments');
+      if (!adminContext) {
+        stateManager.clearState(ctx.from.id);
+        return;
+      }
+
       console.log('📝 handleAdminActas called with text:', actasText?.substring(0, 100));
       
       if (!actasText || actasText.trim().length === 0) {
@@ -1919,7 +1934,7 @@ const handlers = {
         await updateTransactionStatus(pool, {
           id: transactionId,
           status: 'pagado',
-          adminId
+          adminId: adminContext.admin.id || null
         });
         
         // Get transaction details for progress bar
@@ -2060,17 +2075,8 @@ const handlers = {
 
   async handleCargarConfirmOrder(ctx, callbackData) {
     try {
-      // Check admin with better error handling
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in handleCargarConfirmOrder:', error);
-      }
-      
-      if (!isUserAdmin) {
-        console.log(`Acceso denegado: User ${ctx.from.id} (@${ctx.from.username || 'sin_username'}) no es admin`);
-        await ctx.answerCbQuery('❌ Solo administradores', true);
+      const adminContext = await ensureAdminPermission(ctx, 'manageBalance');
+      if (!adminContext) {
         return;
       }
 
@@ -2100,11 +2106,7 @@ const handlers = {
       }
 
       // Get admin ID from admins table
-      const adminResult = await pool.query(
-        'SELECT id FROM admins WHERE telegram_id = $1 OR username = $2 LIMIT 1',
-        [ctx.from.id, ctx.from.username ? `@${ctx.from.username}` : null]
-      );
-      const adminId = adminResult.rows.length > 0 ? adminResult.rows[0].id : null;
+      const adminId = adminContext.admin.id || null;
 
       // Start transaction for atomicity
       const client = await pool.connect();
@@ -2135,7 +2137,7 @@ const handlers = {
       }
 
       await auditLogger.log(
-        `@${ctx.from.username || 'admin'}`,
+        adminContext.admin.username || `@${ctx.from.username || 'admin'}`,
         'cargar_saldo',
         { username: transaction.username, amount: transaction.amount_usdt, transactionId }
       );
@@ -2153,13 +2155,14 @@ const handlers = {
       // Update message in admin group (orders) - marcar como acreditado pero mantener el mensaje
       try {
         const originalText = ctx.callbackQuery.message.text || ctx.callbackQuery.message.caption || '';
+        const actor = adminContext.admin.username || (ctx.from.username ? `@${ctx.from.username}` : 'admin');
         await ctx.editMessageCaption(
-          originalText + '\n\n✅ *Acreditado por @' + (ctx.from.username || 'admin') + '*',
+          `${originalText}\n\n✅ *Acreditado por ${actor}*`,
           { parse_mode: 'Markdown' }
         ).catch(async () => {
           // Si es mensaje de texto, editar el texto
           await ctx.editMessageText(
-            originalText + '\n\n✅ *Acreditado por @' + (ctx.from.username || 'admin') + '*',
+            `${originalText}\n\n✅ *Acreditado por ${actor}*`,
             { parse_mode: 'Markdown' }
           );
         });
@@ -2213,17 +2216,8 @@ const handlers = {
 
   async handleCargarRejectOrder(ctx, callbackData) {
     try {
-      // Check admin with better error handling
-      let isUserAdmin = false;
-      try {
-        isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      } catch (error) {
-        console.error('Error checking admin in handleCargarRejectOrder:', error);
-      }
-      
-      if (!isUserAdmin) {
-        console.log(`Acceso denegado: User ${ctx.from.id} (@${ctx.from.username || 'sin_username'}) no es admin`);
-        await ctx.answerCbQuery('❌ Solo administradores', true);
+      const adminContext = await ensureAdminPermission(ctx, 'manageBalance');
+      if (!adminContext) {
         return;
       }
 
@@ -2268,9 +2262,9 @@ const handlers = {
       });
 
       await auditLogger.log(
-        `@${ctx.from.username || 'admin'}`,
-        'carga_rechazada',
-        { username: transaction.username, amount: transaction.amount_usdt, transactionId }
+        adminContext.admin.username || `@${ctx.from.username || 'admin'}`,
+        'rechazar_carga',
+        { username: transaction.username, amount: transaction.amount_usdt, motivo }
       );
 
       // Notify user
@@ -2317,23 +2311,21 @@ const handlers = {
 
   async trc20(ctx) {
     try {
-      // Verificar que es un grupo
-      const chatType = ctx.chat.type;
-      if (chatType !== 'group' && chatType !== 'supergroup') {
-        await ctx.reply('❌ Este comando solo puede usarse en grupos.');
-        return;
-      }
-
-      // Verificar que el usuario es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo los administradores pueden usar este comando.');
-        return;
-      }
-
-      // Enviar el link de TRC20
-      const trc20Link = 'https://tronscan.org/#/address/TCFeWDZgCZQxuveQUDEEpdq9TA31itHkdM/transfers';
-      await ctx.reply(`🔗 *Transacciones TRC20*\n\n${trc20Link}`, { parse_mode: 'Markdown' });
+       // Verificar que es un grupo
+       const chatType = ctx.chat.type;
+       if (chatType !== 'group' && chatType !== 'supergroup') {
+         await ctx.reply('❌ Este comando solo puede usarse en grupos.');
+         return;
+       }
+ 
+       const adminContext = await ensureAdminPermission(ctx, 'access');
+       if (!adminContext) {
+         return;
+       }
+ 
+       // Enviar el link de TRC20
+       const trc20Link = 'https://tronscan.org/#/address/TCFeWDZgCZQxuveQUDEEpdq9TA31itHkdM/transfers';
+       await ctx.reply(`🔗 *Transacciones TRC20*\n\n${trc20Link}`, { parse_mode: 'Markdown' });
     } catch (error) {
       console.error('Error in /trc20:', error);
       await ctx.reply('❌ Error al ejecutar el comando.');
@@ -2349,10 +2341,8 @@ const handlers = {
         return;
       }
 
-      // Verificar que el usuario es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo los administradores pueden usar este comando.');
+      const adminContext = await ensureAdminPermission(ctx, 'access');
+      if (!adminContext) {
         return;
       }
 
@@ -2367,10 +2357,8 @@ const handlers = {
 
   async banear(ctx) {
     try {
-      // Verificar que el usuario es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo los administradores pueden usar este comando.');
+      const adminContext = await ensureAdminPermission(ctx, 'manageUsers');
+      if (!adminContext) {
         return;
       }
 
@@ -2415,6 +2403,9 @@ const handlers = {
       const bannedUntil = new Date();
       bannedUntil.setMinutes(bannedUntil.getMinutes() + minutes);
 
+      const actorTelegramId = adminContext.admin.telegram_id || ctx.from.id.toString();
+      const actorUsername = adminContext.admin.username || (ctx.from.username ? `@${ctx.from.username}` : `user_${ctx.from.id}`);
+
       // Insertar o actualizar ban
       await pool.query(
         `INSERT INTO banned_users (telegram_id, username, banned_by, banned_by_username, reason, banned_until)
@@ -2430,8 +2421,8 @@ const handlers = {
         [
           telegramId.toString(),
           `@${username}`,
-          ctx.from.id.toString(),
-          ctx.from.username ? `@${ctx.from.username}` : `user_${ctx.from.id}`,
+          actorTelegramId,
+          actorUsername,
           'Pago falso detectado',
           bannedUntil
         ]
@@ -2461,7 +2452,7 @@ const handlers = {
 
       // Log audit
       await auditLogger.log(
-        ctx.from.username || `user_${ctx.from.id}`,
+        actorUsername,
         'ban_user',
         { bannedUser: username, minutes, telegramId }
       );
@@ -2473,45 +2464,9 @@ const handlers = {
 
   async noticia(ctx) {
     try {
-      // Verificar que el usuario es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
-        await ctx.reply('❌ Solo los administradores pueden usar este comando.');
+      const adminContext = await ensureAdminPermission(ctx, 'broadcast');
+      if (!adminContext) {
         return;
-      }
-
-      // Verificar que está en un grupo de órdenes o en privado
-      const chatType = ctx.chat.type;
-      const isGroup = chatType === 'group' || chatType === 'supergroup';
-      const isPrivate = chatType === 'private';
-
-      if (!isGroup && !isPrivate) {
-        await ctx.reply('❌ Este comando solo puede usarse en grupos de administración o en privado con el bot.');
-        return;
-      }
-
-      // Si está en grupo, verificar que es un grupo de administración
-      if (isGroup) {
-        const groupManager = require('../utils/groupManager');
-        const adminGroups = config.admin_groups || [];
-        let found = false;
-        
-        for (const groupLink of adminGroups) {
-          try {
-            const groupChatId = await groupManager.getGroupChatId(ctx.telegram, groupLink);
-            if (groupChatId && ctx.chat.id.toString() === groupChatId.toString()) {
-              found = true;
-              break;
-            }
-          } catch (e) {
-            // Ignorar errores
-          }
-        }
-        
-        if (!found) {
-          await ctx.reply('❌ Este comando solo puede usarse en grupos de administración configurados.');
-          return;
-        }
       }
 
       // Pedir al admin que envíe el mensaje (texto, imagen, etc.)

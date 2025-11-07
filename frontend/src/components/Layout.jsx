@@ -83,6 +83,13 @@ function Layout() {
             👥 Usuarios
           </Link>
           <Link
+            to="/admins"
+            onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
+            className="block px-4 md:px-6 py-2 md:py-3 hover:bg-gray-700 transition-colors text-sm md:text-base"
+          >
+            🛡️ Roles de Administradores
+          </Link>
+          <Link
             to="/wallets"
             onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
             className="block px-4 md:px-6 py-2 md:py-3 hover:bg-gray-700 transition-colors text-sm md:text-base"

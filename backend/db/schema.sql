@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS admins (
   id SERIAL PRIMARY KEY,
   username TEXT NOT NULL,
   telegram_id BIGINT,
+  role TEXT CHECK (role IN ('superadmin','operador','auditor')) DEFAULT 'superadmin',
+  active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -81,16 +83,16 @@ INSERT INTO wallets (label, network, address, active) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Insert default admins (only if not exists)
-INSERT INTO admins (username, telegram_id)
-SELECT '@pagoTODO25', NULL
+INSERT INTO admins (username, telegram_id, role)
+SELECT '@pagoTODO25', NULL, 'superadmin'
 WHERE NOT EXISTS (SELECT 1 FROM admins WHERE username = '@pagoTODO25');
 
-INSERT INTO admins (username, telegram_id)
-SELECT '@AnubisCcs', NULL
+INSERT INTO admins (username, telegram_id, role)
+SELECT '@AnubisCcs', NULL, 'superadmin'
 WHERE NOT EXISTS (SELECT 1 FROM admins WHERE username = '@AnubisCcs');
 
-INSERT INTO admins (username, telegram_id)
-SELECT '@AK3RRR', NULL
+INSERT INTO admins (username, telegram_id, role)
+SELECT '@AK3RRR', NULL, 'operador'
 WHERE NOT EXISTS (SELECT 1 FROM admins WHERE username = '@AK3RRR');
 
 -- Insert default config

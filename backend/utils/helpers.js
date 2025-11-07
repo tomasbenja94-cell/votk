@@ -20,11 +20,11 @@ function decodeIdentifier(encoded) {
   return encoded.replace(/_HASH_/g, '#').replace(/_SPACE_/g, ' ');
 }
 
-// Check if user is admin
-async function isAdmin(telegramId, username) {
+// Get admin context with role and active flag
+async function getAdminContext(telegramId, username) {
   try {
     if (!telegramId && !username) {
-      return false;
+      return null;
     }
     
     // Normalize username (remove @ if present, handle case insensitive)
@@ -38,7 +38,14 @@ async function isAdmin(telegramId, username) {
       );
       if (resultById.rows.length > 0) {
         console.log(`Admin encontrado por telegram_id: ${telegramId}`);
-        return true;
+        const admin = resultById.rows[0];
+        if (admin.active === false) {
+          return null;
+        }
+        if (!admin.role) {
+          admin.role = 'superadmin';
+        }
+        return admin;
       }
     }
     
@@ -59,13 +66,20 @@ async function isAdmin(telegramId, username) {
             [telegramId.toString(), admin.id]
           );
           console.log(`Admin actualizado: telegram_id agregado para ${admin.username}`);
+          admin.telegram_id = telegramId.toString();
         }
         console.log(`Admin encontrado por username: ${normalizedUsername}`);
-        return true;
+        if (admin.active === false) {
+          return null;
+        }
+        if (!admin.role) {
+          admin.role = 'superadmin';
+        }
+        return admin;
       }
     }
     
-    return false;
+    return null;
   } catch (error) {
     console.error('Error checking admin:', error);
     console.error('Error details:', {
@@ -74,8 +88,14 @@ async function isAdmin(telegramId, username) {
       telegramId,
       username
     });
-    return false;
+    return null;
   }
+}
+
+// Check if user is admin (legacy boolean helper)
+async function isAdmin(telegramId, username) {
+  const admin = await getAdminContext(telegramId, username);
+  return !!admin;
 }
 
 // Get or create user
@@ -180,6 +200,7 @@ module.exports = {
   generateIdentifier,
   encodeIdentifier,
   decodeIdentifier,
+  getAdminContext,
   isAdmin,
   getOrCreateUser,
   formatCurrency,

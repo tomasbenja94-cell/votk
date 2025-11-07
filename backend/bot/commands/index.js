@@ -1,10 +1,40 @@
 const pool = require('../../db/connection');
-const { getOrCreateUser, formatCurrency, formatARS } = require('../../utils/helpers');
+const { getOrCreateUser, formatCurrency, formatARS, isAdmin, getAdminContext } = require('../../utils/helpers');
 const priceService = require('../../services/priceService');
 const stateManager = require('../handlers/stateManager');
 const messageService = require('../../services/messageService');
 const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
+
+const ADMIN_COMMANDS_BY_ROLE = {
+  superadmin: [
+    '/admin - Acceder al panel de administración',
+    '/cancelar <ID> <motivo> - Cancelar una transacción',
+    '/wallet - Ver wallets configuradas',
+    '/logs - Ver logs del sistema',
+    '/config - Ver configuración del bot',
+    '/setgroupchatid <link> - Configurar chat de administración',
+    '/eliminarsaldo <telegram_id> <monto> - Ajustar saldo de un usuario',
+    '/banear @usuario <minutos> - Banear usuarios temporalmente',
+    '/noticia - Enviar noticia a todos los usuarios',
+    '/trc20 - Enlace de Tronscan (grupos)',
+    '/bep20 - Enlace de BSCScan (grupos)',
+    '/comandosop - Ver esta lista'
+  ],
+  operador: [
+    '/admin - Acceder al panel de administración',
+    '/cancelar <ID> <motivo> - Cancelar una transacción',
+    '/logs - Ver logs del sistema',
+    '/trc20 - Enlace de Tronscan (grupos)',
+    '/bep20 - Enlace de BSCScan (grupos)',
+    '/comandosop - Ver esta lista'
+  ],
+  auditor: [
+    '/admin - Acceder al panel de administración',
+    '/logs - Ver logs del sistema',
+    '/comandosop - Ver esta lista'
+  ]
+};
 
 function buildNotificationMenu(user) {
   const statusText = user.notify_instant
@@ -1019,11 +1049,8 @@ const commands = {
 
   async comandosgrupo(ctx) {
     try {
-      const { isAdmin } = require('../../utils/helpers');
-      
-      // Verificar que es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
+      const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+      if (!adminContext || adminContext.active === false) {
         await ctx.reply('❌ Solo administradores pueden usar este comando.');
         return;
       }
@@ -1051,33 +1078,19 @@ const commands = {
 
   async comandosop(ctx) {
     try {
-      const { isAdmin } = require('../../utils/helpers');
-      
-      // Verificar que es admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
+      const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+      if (!adminContext || adminContext.active === false) {
         await ctx.reply('❌ Solo administradores pueden usar este comando.');
         return;
       }
 
+      const role = adminContext.role || 'superadmin';
+      const commandsList = ADMIN_COMMANDS_BY_ROLE[role] || ADMIN_COMMANDS_BY_ROLE.superadmin;
+
       const message = `*⚙️ COMANDOS DE ADMINISTRACIÓN*\n\n` +
-        `*Comandos de administración:*\n\n` +
-        `/admin - Acceder al panel de administración\n` +
-        `/cancelar <ID> <motivo> - Cancelar una transacción\n` +
-        `/wallet - Ver wallets configuradas\n` +
-        `/logs - Ver logs del sistema\n` +
-        `/config - Ver configuración del bot\n` +
-        `/setgroupchatid - Configurar chat_id de un grupo\n` +
-        `/eliminarsaldo <telegram_id> <monto> - Eliminar saldo de un usuario\n` +
-        `/banear @usuario <minutos> - Banear un usuario por tiempo determinado\n` +
-        `/noticia - Enviar noticia a todos los usuarios (texto o imagen)\n` +
-        `/trc20 - Enlace de Tronscan (solo en grupos)\n` +
-        `/bep20 - Enlace de BSCScan (solo en grupos)\n` +
-        `/comandosop - Ver esta lista\n\n` +
-        `*Acciones desde mensajes:*\n` +
-        `• Botones "Pagado" / "Cancelar" en órdenes de pago\n` +
-        `• Botones "Acreditar saldo" / "Rechazar" en comprobantes\n` +
-        `• Botones "Admitir" / "Rechazar" en órdenes de multas`;
+        `Rol actual: *${role.toUpperCase()}*\n\n` +
+        `*Comandos disponibles:*\n` +
+        `${commandsList.map((cmd) => `• ${cmd}`).join('\n')}`;
 
       const keyboard = {
         reply_markup: {

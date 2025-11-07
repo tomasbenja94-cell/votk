@@ -1,5 +1,5 @@
 const pool = require('../../db/connection');
-const { getOrCreateUser, generateIdentifier, encodeIdentifier, decodeIdentifier, formatCurrency, formatARS } = require('../../utils/helpers');
+const { getOrCreateUser, generateIdentifier, encodeIdentifier, decodeIdentifier, formatCurrency, formatARS, getAdminContext } = require('../../utils/helpers');
 const priceService = require('../../services/priceService');
 const stateManager = require('./stateManager');
 const messageService = require('../../services/messageService');
@@ -1860,13 +1860,17 @@ const handlers = {
 
   async handleAdminNoticia(ctx, text) {
     try {
-      const { isAdmin } = require('../../utils/helpers');
-      
-      // Verificar que sigue siendo admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
+      const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+
+      if (!adminContext || adminContext.active === false) {
         stateManager.clearState(ctx.from.id);
         await ctx.reply('❌ No tienes permisos para enviar noticias.');
+        return;
+      }
+
+      if (adminContext.role !== 'superadmin') {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ Solo los superadministradores pueden enviar noticias masivas.');
         return;
       }
 
@@ -1922,7 +1926,7 @@ const handlers = {
       // Log audit
       const auditLogger = require('../../services/auditLogger');
       await auditLogger.log(
-        ctx.from.username || `user_${ctx.from.id}`,
+        adminContext.username || ctx.from.username || `user_${ctx.from.id}`,
         'send_noticia',
         { totalUsers, sentCount, failedCount }
       );
@@ -1935,13 +1939,17 @@ const handlers = {
 
   async handleAdminNoticiaPhoto(ctx) {
     try {
-      const { isAdmin } = require('../../utils/helpers');
-      
-      // Verificar que sigue siendo admin
-      const isUserAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-      if (!isUserAdmin) {
+      const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+
+      if (!adminContext || adminContext.active === false) {
         stateManager.clearState(ctx.from.id);
         await ctx.reply('❌ No tienes permisos para enviar noticias.');
+        return;
+      }
+
+      if (adminContext.role !== 'superadmin') {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ Solo los superadministradores pueden enviar noticias masivas.');
         return;
       }
 
@@ -2005,9 +2013,9 @@ const handlers = {
       // Log audit
       const auditLogger = require('../../services/auditLogger');
       await auditLogger.log(
-        ctx.from.username || `user_${ctx.from.id}`,
+        adminContext.username || ctx.from.username || `user_${ctx.from.id}`,
         'send_noticia_photo',
-        { totalUsers, sentCount, failedCount }
+        { totalUsers, sentCount, failedCount, type: 'photo' }
       );
     } catch (error) {
       console.error('Error in handleAdminNoticiaPhoto:', error);
