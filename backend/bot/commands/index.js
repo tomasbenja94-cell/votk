@@ -51,8 +51,7 @@ const commands = {
             [{ text: 'PAGAR', callback_data: 'action_pagar' }],
             [{ text: 'CARGAR SALDO', callback_data: 'action_cargar' }],
             [{ text: 'SALDO', callback_data: 'action_saldo' }],
-            [{ text: 'HISTORIAL', callback_data: 'action_historial' }],
-            [{ text: 'PAGAR MULTAS PBA', callback_data: 'action_pagar_multas' }]
+            [{ text: 'HISTORIAL', callback_data: 'action_historial' }]
           ]
         }
       };
