@@ -306,18 +306,18 @@ async function downloadDeletedPDF(req, res) {
     doc.moveDown();
     
     // Table header
+    let yPos = doc.y;
     doc.font('Helvetica-Bold');
-    doc.text('Fecha', 50, doc.y);
-    doc.text('Usuario', 150, doc.y);
-    doc.text('Tipo', 250, doc.y);
-    doc.text('Monto USDT', 320, doc.y);
-    doc.text('Monto ARS', 420, doc.y);
-    doc.text('Estado', 520, doc.y);
-    doc.moveDown();
+    doc.text('Fecha', 50, yPos);
+    doc.text('Usuario', 150, yPos);
+    doc.text('Tipo', 250, yPos);
+    doc.text('Monto USDT', 320, yPos);
+    doc.text('Monto ARS', 420, yPos);
+    doc.text('Estado', 520, yPos);
+    yPos += 20;
     
     // Table rows
     doc.font('Helvetica');
-    let yPos = doc.y;
     result.rows.forEach((tx, index) => {
       if (yPos > 700) {
         doc.addPage();
