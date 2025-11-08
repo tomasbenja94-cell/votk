@@ -10,6 +10,7 @@ const animationManager = require('../utils/animations');
 const commandHandlers = require('../commands');
 const config = require('../../config/default.json');
 const dailySummaryService = require('../../services/dailySummaryService');
+const webhookService = require('../../services/webhookService');
 
 const ADMIN_PERMISSIONS = {
   superadmin: {
@@ -517,6 +518,8 @@ const handlers = {
       }
 
       const transaction = transactionResult.rows[0];
+      const originalStatus = transaction.status;
+      const originalStatus = transaction.status;
 
       // Refund balance if it was a payment
       if (transaction.type === 'pago') {
@@ -694,9 +697,10 @@ const handlers = {
         const adminId = adminResult.rows.length > 0 ? adminResult.rows[0].id : null;
 
         // Crear transacción de registro
-        await client.query(
+        const reembolsoResult = await client.query(
           `INSERT INTO transactions (user_id, type, amount_usdt, status, motivo, admin_id)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
           [
             user.id,
             'reembolso',
@@ -708,6 +712,27 @@ const handlers = {
         );
 
         await client.query('COMMIT');
+
+        const reembolsoTransaction = reembolsoResult.rows ? reembolsoResult.rows[0] : null;
+
+        if (reembolsoTransaction) {
+          await webhookService.emit('transactions.created', {
+            transactionId: reembolsoTransaction.id,
+            type: reembolsoTransaction.type,
+            status: reembolsoTransaction.status,
+            amountUsdt: Number(reembolsoTransaction.amount_usdt || 0),
+            user: {
+              id: user.id,
+              telegramId: user.telegram_id,
+              username: user.username
+            },
+            channel: 'reembolso',
+            metadata: {
+              motivo: `Saldo eliminado por admin @${ctx.from.username || 'admin'}`
+            },
+            createdAt: reembolsoTransaction.created_at
+          });
+        }
 
         // Log de auditoría
         await auditLogger.log(
@@ -1795,6 +1820,15 @@ const handlers = {
         });
         
         await client.query('COMMIT');
+
+        await webhookService.emit('transactions.status_changed', {
+          transactionId,
+          previousStatus: transaction.status,
+          newStatus: 'cancelado',
+          admin: ctx.from.username ? `@${ctx.from.username}` : ctx.from.id,
+          eventSource: 'admin_bot',
+          motivo: 'Cancelado por administrador'
+        });
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
@@ -2132,6 +2166,14 @@ const handlers = {
         });
 
         await client.query('COMMIT');
+
+        await webhookService.emit('transactions.status_changed', {
+          transactionId,
+          previousStatus: originalStatus,
+          newStatus: 'pagado',
+          admin: ctx.from.username ? `@${ctx.from.username}` : ctx.from.id,
+          eventSource: 'admin_bot'
+        });
         
         console.log(`✅ Balance updated: User ${transaction.user_id} +${transaction.amount_usdt} USDT`);
       } catch (error) {
@@ -2177,11 +2219,18 @@ const handlers = {
 
       // Send photo to TRANSFER GROUPS (solo cuando se acepta)
       const transferGroups = config.transfer_groups || [];
-      const transferMessageText = `📥 *Nueva transferencia recibida*\n\n` +
-        `Monto: *${transaction.amount_usdt} USDT*\n` +
-        `Usuario: @${transaction.username || 'sin_username'}\n` +
-        `${transaction.identifier}\n` +
-        `Transacción: #${transaction.id}`;
+      const identifierLine = transaction.identifier ? `Referencia: ${transaction.identifier}` : null;
+      const transferMessageText = [
+        '═══════════════════════',
+        ' TRANSFERENCIA RECIBIDA',
+        '═══════════════════════',
+        `Monto USDT: ${Number(transaction.amount_usdt).toFixed(2)}`,
+        `Cliente: @${transaction.username || 'sin_username'}`,
+        identifierLine,
+        `Transacción #: ${transaction.id}`,
+        '──────────────',
+        'Verifique y registre la operación.'
+      ].filter(Boolean).join('\n');
 
       // Get file_id from proof_image (formato: file_id|chat_id|message_id)
       const proofData = transaction.proof_image || '';
@@ -2194,14 +2243,9 @@ const handlers = {
           if (groupChatId) {
             try {
               // Intentar sendPhoto con file_id
-              await bot.telegram.sendPhoto(
-                groupChatId,
-                fileId,
-                {
-                  caption: transferMessageText,
-                  parse_mode: 'Markdown'
-                }
-              );
+              await bot.telegram.sendPhoto(groupChatId, fileId, {
+                caption: transferMessageText
+              });
               console.log(`Photo sent to transfer group ${inviteLink} after approval`);
             } catch (error) {
               console.error(`Error sending photo to transfer group ${inviteLink}:`, error.message);
@@ -2266,6 +2310,8 @@ const handlers = {
         adminId
       });
 
+      const motivo = 'Rechazado por administrador';
+
       await auditLogger.log(
         adminContext.admin.username || `@${ctx.from.username || 'admin'}`,
         'rechazar_carga',
@@ -2308,6 +2354,15 @@ const handlers = {
       }
 
       await ctx.answerCbQuery('✅ Orden rechazada');
+
+      await webhookService.emit('transactions.status_changed', {
+        transactionId,
+        previousStatus: originalStatus,
+        newStatus: 'cancelado',
+        admin: ctx.from.username ? `@${ctx.from.username}` : ctx.from.id,
+        eventSource: 'admin_bot',
+        motivo: 'Rechazado por administrador'
+      });
     } catch (error) {
       console.error('Error in handleCargarRejectOrder:', error);
       await ctx.answerCbQuery('❌ Error al rechazar orden', true);

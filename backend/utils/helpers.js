@@ -196,6 +196,13 @@ function formatARS(amount) {
   return `$${formattedInteger},${decimalPart}`;
 }
 
+function escapeMarkdown(text = '') {
+  if (text === null || text === undefined) {
+    return '';
+  }
+  return String(text).replace(/([_*[\]()~`>#+=|{}])/g, '\\$1');
+}
+
 module.exports = {
   generateIdentifier,
   encodeIdentifier,
@@ -204,6 +211,7 @@ module.exports = {
   isAdmin,
   getOrCreateUser,
   formatCurrency,
-  formatARS
+  formatARS,
+  escapeMarkdown
 };
 

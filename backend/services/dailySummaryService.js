@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const pool = require('../db/connection');
 const groupManager = require('../bot/utils/groupManager');
+const { escapeMarkdown } = require('../utils/helpers');
 
 let scheduledTask = null;
 let botInstance = null;
@@ -59,7 +60,11 @@ async function generateSummary() {
   let topUsersText = '—';
   if (topUsersResult.rows.length > 0) {
     topUsersText = topUsersResult.rows
-      .map((row, index) => `#${index + 1} @${row.username || 'sin_username'} · ${parseFloat(row.total_usdt || 0).toFixed(2)} USDT`)
+      .map((row, index) => {
+        const username = escapeMarkdown(row.username || 'sin_username');
+        const total = escapeMarkdown(`${parseFloat(row.total_usdt || 0).toFixed(2)} USDT`);
+        return `#${index + 1} @${username} · ${total}`;
+      })
       .join('\n');
   }
 

@@ -84,14 +84,29 @@ class GroupManager {
         
         if (chatId) {
           try {
-            const sent = await bot.telegram.sendMessage(
-              chatId,
-              message,
-              options
-            );
+            const baseOptions = options ? { ...options } : {};
+            const sent = await bot.telegram.sendMessage(chatId, message, baseOptions);
             results.push({ inviteLink, success: true, messageId: sent.message_id });
           } catch (error) {
             console.error(`Error sending message to group ${inviteLink}:`, error.message);
+            if (
+              error.code === 400 &&
+              typeof error.description === 'string' &&
+              error.description.includes("can't parse entities")
+            ) {
+              try {
+                const fallbackOptions = options ? { ...options } : {};
+                delete fallbackOptions.parse_mode;
+                const sentFallback = await bot.telegram.sendMessage(chatId, message, fallbackOptions);
+                console.log(`✅ Resent message to ${inviteLink} without parse_mode due to formatting issues`);
+                results.push({ inviteLink, success: true, messageId: sentFallback.message_id, fallback: true });
+                continue;
+              } catch (fallbackError) {
+                console.error(`Fallback send failed for group ${inviteLink}:`, fallbackError.message);
+                results.push({ inviteLink, success: false, error: fallbackError.message });
+                continue;
+              }
+            }
             results.push({ inviteLink, success: false, error: error.message });
           }
         } else {
@@ -121,14 +136,30 @@ class GroupManager {
         
         if (chatId) {
           try {
-            const sent = await bot.telegram.sendPhoto(
-              chatId,
-              { source: photoBuffer },
-              { caption, parse_mode: 'Markdown', ...options }
-            );
+            const payload = { caption, ...(options || {}) };
+            const sent = await bot.telegram.sendPhoto(chatId, { source: photoBuffer }, payload);
             results.push({ inviteLink, success: true, messageId: sent.message_id });
           } catch (error) {
             console.error(`Error sending photo to group ${inviteLink}:`, error.message);
+            if (
+              error.code === 400 &&
+              typeof error.description === 'string' &&
+              error.description.includes("can't parse entities")
+            ) {
+              try {
+                const fallbackOptions = { ...options };
+                const fallbackPayload = { caption, ...fallbackOptions };
+                delete fallbackPayload.parse_mode;
+                const sentFallback = await bot.telegram.sendPhoto(chatId, { source: photoBuffer }, fallbackPayload);
+                console.log(`✅ Resent photo to ${inviteLink} without parse_mode due to formatting issues`);
+                results.push({ inviteLink, success: true, messageId: sentFallback.message_id, fallback: true });
+                continue;
+              } catch (fallbackError) {
+                console.error(`Fallback photo send failed for group ${inviteLink}:`, fallbackError.message);
+                results.push({ inviteLink, success: false, error: fallbackError.message });
+                continue;
+              }
+            }
             results.push({ inviteLink, success: false, error: error.message });
           }
         } else {
@@ -157,14 +188,30 @@ class GroupManager {
         
         if (chatId) {
           try {
-            const sent = await bot.telegram.sendPhoto(
-              chatId,
-              fileId,
-              { caption, parse_mode: 'Markdown', ...options }
-            );
+            const payload = { caption, ...(options || {}) };
+            const sent = await bot.telegram.sendPhoto(chatId, fileId, payload);
             results.push({ inviteLink, success: true, messageId: sent.message_id });
           } catch (error) {
             console.error(`Error sending photo to transfer group ${inviteLink}:`, error.message);
+            if (
+              error.code === 400 &&
+              typeof error.description === 'string' &&
+              error.description.includes("can't parse entities")
+            ) {
+              try {
+                const fallbackOptions = { ...options };
+                const fallbackPayload = { caption, ...fallbackOptions };
+                delete fallbackPayload.parse_mode;
+                const sentFallback = await bot.telegram.sendPhoto(chatId, fileId, fallbackPayload);
+                console.log(`✅ Resent photo to transfer group ${inviteLink} without parse_mode due to formatting issues`);
+                results.push({ inviteLink, success: true, messageId: sentFallback.message_id, fallback: true });
+                continue;
+              } catch (fallbackError) {
+                console.error(`Fallback transfer photo send failed for group ${inviteLink}:`, fallbackError.message);
+                results.push({ inviteLink, success: false, error: fallbackError.message });
+                continue;
+              }
+            }
             results.push({ inviteLink, success: false, error: error.message });
           }
         } else {

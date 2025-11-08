@@ -5,6 +5,7 @@ const stateManager = require('./stateManager');
 const messageService = require('../../services/messageService');
 const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
+const webhookService = require('../../services/webhookService');
 const groupManager = require('../utils/groupManager');
 const config = require('../../config/default.json');
 const fs = require('fs');
@@ -437,12 +438,35 @@ const handlers = {
 
       const transaction = transactionResult.rows[0];
 
+      await webhookService.emit('transactions.created', {
+        transactionId: transaction.id,
+        type: transaction.type,
+        status: transaction.status,
+        amountUsdt: Number(transaction.amount_usdt || 0),
+        amountArs: transaction.amount_ars ? Number(transaction.amount_ars) : null,
+        identifier: transaction.identifier,
+        user: {
+          id: user.id,
+          telegramId: user.telegram_id,
+          username: ctx.from.username || null
+        },
+        channel: 'carga',
+        createdAt: transaction.created_at
+      });
+
       // Message for admin groups (orders) - with photo and buttons
-      const orderMessage = `📥 *Nueva orden de carga*\n\n` +
-        `Monto: *${finalData.amount} USDT*\n` +
-        `Usuario: @${ctx.from.username || 'sin_username'}\n` +
-        `${finalData.identifier}\n` +
-        `Transacción: #${transaction.id}`;
+      const identifierLine = finalData.identifier ? `Identificador: ${finalData.identifier}` : null;
+      const orderMessage = [
+        '═══════════════════════',
+        ' NUEVA ORDEN DE CARGA',
+        '═══════════════════════',
+        `Monto USDT: ${Number(finalData.amount).toFixed(2)}`,
+        `Cliente: @${ctx.from.username || 'sin_username'}`,
+        identifierLine,
+        `Transacción #: ${transaction.id}`,
+        '──────────────',
+        'Seleccione una acción utilizando los botones.'
+      ].filter(Boolean).join('\n');
         
       const orderKeyboard = {
         reply_markup: {
@@ -474,7 +498,6 @@ const handlers = {
               fileId,
               {
                 caption: orderMessage,
-                parse_mode: 'Markdown',
                 reply_markup: orderKeyboard.reply_markup
               }
             );
@@ -1101,6 +1124,25 @@ const handlers = {
 
         const transaction = transactionResult.rows[0];
 
+        await webhookService.emit('transactions.created', {
+          transactionId: transaction.id,
+          type: transaction.type,
+          status: transaction.status,
+          amountUsdt: Number(transaction.amount_usdt || 0),
+          amountArs: Number(transaction.amount_ars || 0),
+          user: {
+            id: user.id,
+            telegramId: user.telegram_id,
+            username: ctx.from.username || null
+          },
+          channel: 'macro',
+          metadata: {
+            servicio: data?.nombre_servicio || null,
+            referencia: data?.dni || null
+          },
+          createdAt: transaction.created_at
+        });
+
         // Deduct balance
         await client.query(
           'UPDATE users SET saldo_usdt = saldo_usdt - $1 WHERE id = $2',
@@ -1135,16 +1177,26 @@ const handlers = {
 
         // Format message for admin group (sin nombre del titular)
         const montoTotalUSDTMacro = await priceService.convertARSToUSDT(monto);
-        const adminMessage = `🏦 *Nuevo pago (Macro/PlusPagos)*\n\n` +
-          `Cliente: @${ctx.from.username || 'sin_username'}\n` +
-          `📋 Servicio: ${data.nombre_servicio || 'N/A'}\n` +
-          `📄 Número/DNI: ${data.dni || 'N/A'}\n` +
-          `💰 Monto: $${monto} ARS\n` +
-          `💵 Monto Total (USDT): ${montoTotalUSDTMacro.toFixed(2)}\n` +
-          `💵 COBRADO USDT: ${amountUSDT.toFixed(2)} (20% del monto total en USDT)\n` +
-          `Transacción: #${transaction.id}\n` +
-          `Estado: Procesando...\n\n` +
-          `[Macro/PlusPagos]`;
+        const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
+        const servicioText = data.nombre_servicio || 'N/A';
+        const dniText = data.dni || 'N/A';
+        const montoArsTexto = formatARS(monto);
+
+        const adminMessage = [
+          '╔══════════════════════════╗',
+          '  SOLICITUD DE PAGO - MACRO/PLUS',
+          '╚══════════════════════════╝',
+          `Cliente: ${usernameText}`,
+          `Servicio: ${servicioText}`,
+          `Número / DNI: ${dniText}`,
+          `Monto ARS: ${montoArsTexto}`,
+          `Monto total USDT: ${montoTotalUSDTMacro.toFixed(2)}`,
+          `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+          `Transacción #: ${transaction.id}`,
+          'Estado: PROCESANDO',
+          '──────────────',
+          'Utilice los botones para aprobar o cancelar.'
+        ].join('\n');
 
         const adminKeyboard = {
           reply_markup: {
@@ -1157,11 +1209,9 @@ const handlers = {
 
         // Send to admin groups
         try {
-          await groupManager.sendToAdminGroups(
-            bot,
-            adminMessage,
-            { reply_markup: adminKeyboard.reply_markup, parse_mode: 'Markdown' }
-          );
+          await groupManager.sendToAdminGroups(bot, adminMessage, {
+            reply_markup: adminKeyboard.reply_markup
+          });
         } catch (error) {
           console.error('Error sending Macro payment to admin groups:', error);
           // Continue even if group send fails
@@ -1290,22 +1340,48 @@ const handlers = {
 
         await client.query('COMMIT');
 
+        await webhookService.emit('transactions.created', {
+          transactionId: transaction.id,
+          type: transaction.type,
+          status: transaction.status,
+          amountUsdt: Number(transaction.amount_usdt || 0),
+          amountArs: Number(transaction.amount_ars || 0),
+          user: {
+            id: user.id,
+            telegramId: user.telegram_id,
+            username: ctx.from.username || null
+          },
+          channel: type === 'otra' ? 'otro_servicio' : 'rentas',
+          metadata: {
+            servicio: data?.nombre_servicio || null,
+            codigo: data?.codigo || data?.dni || data?.patente || null,
+            subtipo: data?.subtipo || data?.rentas_tipo || null
+          },
+          createdAt: transaction.created_at
+        });
+
         // Format message for admin group
         const montoFormateadoAdmin = formatARS(monto);
         let adminMessage;
+        const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
         
         if (type === 'otra') {
           const montoTotalUSDTOtra = await priceService.convertARSToUSDT(monto);
-          adminMessage = `🏦 *Nuevo pago (PAGAR OTRO SERVICIO)*\n\n` +
-            `Cliente: @${ctx.from.username || 'sin_username'}\n` +
-            `📋 Servicio: ${data.nombre_servicio || 'N/A'}\n` +
-            `📄 Código/Número: ${data.codigo || 'N/A'}\n` +
-            `💰 Monto: ${montoFormateadoAdmin} ARS\n` +
-            `💵 Monto Total (USDT): ${montoTotalUSDTOtra.toFixed(2)}\n` +
-            `💵 COBRADO USDT: ${amountUSDT.toFixed(2)} (20% del monto total en USDT)\n` +
-            `Transacción: #${transaction.id}\n` +
-            `Estado: Procesando...\n\n` +
-            `[PAGAR OTRO SERVICIO]`;
+          adminMessage = [
+            '╔══════════════════════════╗',
+            '  SOLICITUD DE PAGO - OTRO SERVICIO',
+            '╚══════════════════════════╝',
+            `Cliente: ${usernameText}`,
+            `Servicio: ${data.nombre_servicio || 'N/A'}`,
+            `Código / Número: ${data.codigo || 'N/A'}`,
+            `Monto ARS: ${montoFormateadoAdmin}`,
+            `Monto total USDT: ${montoTotalUSDTOtra.toFixed(2)}`,
+            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            `Transacción #: ${transaction.id}`,
+            'Estado: PROCESANDO',
+            '──────────────',
+            'Utilice los botones para aprobar o cancelar.'
+          ].join('\n');
         } else if (type === 'rentas') {
           const rentaTipo = data.renta_tipo || 'AUTOMOTOR';
           let datoLabel = 'Patente';
@@ -1324,18 +1400,25 @@ const handlers = {
             datoLabel = 'Patente';
             datoValor = data.patente || 'N/A';
           }
-          
+
+          const rentaTipoText = rentaTipo.replace('_', ' ');
           const montoTotalUSDTRentas = await priceService.convertARSToUSDT(monto);
-          adminMessage = `🏦 *Nuevo pago (Rentas Córdoba)*\n\n` +
-            `Cliente: @${ctx.from.username || 'sin_username'}\n` +
-            `📋 Tipo: ${rentaTipo.replace('_', ' ')}\n` +
-            `📄 ${datoLabel}: ${datoValor}\n` +
-            `💰 Monto: ${montoFormateadoAdmin} ARS\n` +
-            `💵 Monto Total (USDT): ${montoTotalUSDTRentas.toFixed(2)}\n` +
-            `💵 COBRADO USDT: ${amountUSDT.toFixed(2)} (20% del monto total en USDT)\n` +
-            `Transacción: #${transaction.id}\n` +
-            `Estado: Procesando...\n\n` +
-            `[Rentas Córdoba]`;
+
+          adminMessage = [
+            '╔══════════════════════════╗',
+            '  SOLICITUD DE PAGO - RENTAS CÓRDOBA',
+            '╚══════════════════════════╝',
+            `Cliente: ${usernameText}`,
+            `Tipo: ${rentaTipoText}`,
+            `${datoLabel}: ${datoValor}`,
+            `Monto ARS: ${montoFormateadoAdmin}`,
+            `Monto total USDT: ${montoTotalUSDTRentas.toFixed(2)}`,
+            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            `Transacción #: ${transaction.id}`,
+            'Estado: PROCESANDO',
+            '──────────────',
+            'Utilice los botones para aprobar o cancelar.'
+          ].join('\n');
         }
 
         const keyboard = {
@@ -1350,11 +1433,9 @@ const handlers = {
         // Send to admin groups
         const botInstance = require('../bot').bot;
         try {
-          await groupManager.sendToAdminGroups(
-            botInstance,
-            adminMessage,
-            { reply_markup: keyboard.reply_markup, parse_mode: 'Markdown' }
-          );
+          await groupManager.sendToAdminGroups(botInstance, adminMessage, {
+            reply_markup: keyboard.reply_markup
+          });
         } catch (error) {
           console.error('Error sending payment to admin groups:', error);
         }
@@ -1476,6 +1557,26 @@ const handlers = {
 
         const transaction = transactionResult.rows[0];
 
+        await webhookService.emit('transactions.created', {
+          transactionId: transaction.id,
+          type: transaction.type,
+          status: transaction.status,
+          amountUsdt: Number(transaction.amount_usdt || 0),
+          amountArs: Number(transaction.amount_ars || 0),
+          user: {
+            id: user.id,
+            telegramId: user.telegram_id,
+            username: ctx.from.username || null
+          },
+          channel: 'multas',
+          metadata: {
+            servicio: data?.nombre_servicio || null,
+            codigo: data?.codigo || data?.patente || data?.dni || null,
+            jurisdiccion: data?.jurisdiccion || null
+          },
+          createdAt: transaction.created_at
+        });
+
         // Deduct balance
         await client.query(
           'UPDATE users SET saldo_usdt = saldo_usdt - $1 WHERE id = $2',
@@ -1491,18 +1592,30 @@ const handlers = {
         let adminMessage;
         
         // Si es PBA, usar formato antiguo
+        const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
+
         if (multaTipo === 'PBA') {
-          adminMessage = `🔔 *Nueva orden de pago creada*\n\n` +
-            `📋 *Orden ID:* ${transaction.id}\n\n` +
-            `👤 *Usuario:* @${ctx.from.username || 'sin_username'}\n\n` +
-            `*Dueño de la multa:*\n\n` +
-            `🆔 *DNI:* \`${data.dni || 'N/A'}\`\n` +
-            `⚧️ *Sexo:* ${data.sexo || 'N/A'}\n` +
-            `📄 *Número de trámite:* \`${data.tramite || 'N/A'}\`\n` +
-            `🚗 *Patente:* \`${data.patente || 'N/A'}\`\n\n` +
-            `💰 *Monto Multa ARS:* ${montoFormateado}\n` +
-            `💵 *COBRADO USDT:* ${amountUSDT.toFixed(2)} (20% del monto total en USDT)\n\n` +
-            `📊 *Estado:* EN PROCESO`;
+          const sexoText = data.sexo || 'N/A';
+          const tramiteText = data.tramite || 'N/A';
+          const patenteText = data.patente || 'N/A';
+
+          adminMessage = [
+            '╔══════════════════════════╗',
+            '  NUEVA ORDEN DE PAGO - MULTAS PBA',
+            '╚══════════════════════════╝',
+            `Orden #: ${transaction.id}`,
+            `Usuario: ${usernameText}`,
+            'Datos del titular:',
+            `• DNI: ${data.dni || 'N/A'}`,
+            `• Sexo: ${sexoText}`,
+            `• Nº Trámite: ${tramiteText}`,
+            `• Patente: ${patenteText}`,
+            `Monto ARS: ${montoFormateado}`,
+            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            'Estado: EN PROCESO',
+            '──────────────',
+            'Utilice los botones para admitir o cancelar.'
+          ].join('\n');
         } else {
           // Para multas no PBA, usar nuevo formato
           // Determinar el "Dato de pago" según el tipo de multa
@@ -1531,15 +1644,21 @@ const handlers = {
           
           // Calcular monto total en USDT para mostrar al admin
           const montoTotalUSDTAdmin = await priceService.convertARSToUSDT(monto);
-          adminMessage = `🔔 *Nueva orden de pago creada*\n\n` +
-            `📋 *Orden ID:* ${transaction.id}\n\n` +
-            `👤 *Usuario:* @${ctx.from.username || 'sin_username'}\n\n` +
-            `*Dato de pago:*\n\n` +
-            `${datoLabel}: ${datoPago}\n\n` +
-            `💰 *Monto Multa ARS:* ${montoFormateado}\n` +
-            `💵 *Monto Total (USDT):* ${montoTotalUSDTAdmin.toFixed(2)}\n` +
-            `💵 *COBRADO USDT:* ${amountUSDT.toFixed(2)} (20% del monto total en USDT)\n\n` +
-            `📊 *Estado:* EN PROCESO`;
+          adminMessage = [
+            '╔══════════════════════════╗',
+            '  NUEVA ORDEN DE PAGO - MULTAS',
+            '╚══════════════════════════╝',
+            `Orden #: ${transaction.id}`,
+            `Usuario: ${usernameText}`,
+            'Dato de pago:',
+            `${datoLabel}: ${datoPago}`,
+            `Monto ARS: ${montoFormateado}`,
+            `Monto total USDT: ${montoTotalUSDTAdmin.toFixed(2)}`,
+            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            'Estado: EN PROCESO',
+            '──────────────',
+            'Utilice los botones para admitir o cancelar.'
+          ].join('\n');
         }
 
         const adminKeyboard = {
@@ -1557,11 +1676,9 @@ const handlers = {
         let groupChatId = null;
         
         try {
-          const results = await groupManager.sendToAdminGroups(
-            botInstance,
-            adminMessage,
-            { reply_markup: adminKeyboard.reply_markup, parse_mode: 'Markdown' }
-          );
+          const results = await groupManager.sendToAdminGroups(botInstance, adminMessage, {
+            reply_markup: adminKeyboard.reply_markup
+          });
           
           if (results && results.length > 0) {
             const firstSuccess = results.find(r => r.success);

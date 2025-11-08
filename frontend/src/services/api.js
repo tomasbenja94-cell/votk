@@ -122,6 +122,14 @@ export const adminsAPI = {
   update: (id, data) => api.put(`/api/admins/${id}`, data)
 };
 
+export const webhooksAPI = {
+  getAll: () => api.get('/api/webhooks'),
+  getEvents: () => api.get('/api/webhooks/events'),
+  create: (data) => api.post('/api/webhooks', data),
+  update: (id, data) => api.put(`/api/webhooks/${id}`, data),
+  delete: (id) => api.delete(`/api/webhooks/${id}`)
+};
+
 export const transactionsAPI = {
   getAll: (params) => api.get('/api/transactions', { params }),
   updateStatus: (id, status, motivo) => api.put(`/api/transactions/${id}/status`, { status, motivo }),

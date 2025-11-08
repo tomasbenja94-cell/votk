@@ -60,6 +60,22 @@ CREATE TABLE IF NOT EXISTS config (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Webhooks table
+CREATE TABLE IF NOT EXISTS webhooks (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  event TEXT NOT NULL,
+  secret TEXT,
+  active BOOLEAN DEFAULT true,
+  headers JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhooks_event ON webhooks(event);
+CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(active);
+
 -- Audit logs table
 CREATE TABLE IF NOT EXISTS audit_logs (
   id SERIAL PRIMARY KEY,

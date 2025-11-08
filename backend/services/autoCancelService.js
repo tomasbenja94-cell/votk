@@ -1,6 +1,7 @@
 const pool = require('../db/connection');
 const groupManager = require('../bot/utils/groupManager');
 const config = require('../config/default.json');
+const webhookService = require('./webhookService');
 
 /**
  * Servicio para cancelar automáticamente órdenes sin confirmar por más de 24 horas
@@ -123,6 +124,14 @@ class AutoCancelService {
       );
 
       await client.query('COMMIT');
+
+      await webhookService.emit('transactions.status_changed', {
+        transactionId: transaction.id,
+        previousStatus: transaction.status,
+        newStatus: 'cancelado',
+        eventSource: 'auto_cancel',
+        motivo: 'Cancelado automáticamente por inactividad'
+      });
 
       // Intentar borrar el mensaje del grupo si existe
       try {

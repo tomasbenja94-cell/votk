@@ -11,6 +11,7 @@ const messagesController = require('./controllers/messagesController');
 const walletTransactionsController = require('./controllers/walletTransactionsController');
 const transactionsController = require('./controllers/transactionsController');
 const adminsController = require('./controllers/adminsController');
+const webhooksController = require('./controllers/webhooksController');
 const { authenticateToken } = require('./middleware/auth');
 
 // Auth routes
@@ -45,6 +46,12 @@ router.get('/api/wallet-transactions', authenticateToken, walletTransactionsCont
 
 router.get('/api/admins', authenticateToken, adminsController.getAll);
 router.put('/api/admins/:id', authenticateToken, adminsController.update);
+
+router.get('/api/webhooks', authenticateToken, webhooksController.getAll);
+router.get('/api/webhooks/events', authenticateToken, webhooksController.listEvents);
+router.post('/api/webhooks', authenticateToken, webhooksController.create);
+router.put('/api/webhooks/:id', authenticateToken, webhooksController.update);
+router.delete('/api/webhooks/:id', authenticateToken, webhooksController.remove);
 
 router.get('/api/transactions', authenticateToken, transactionsController.getAll);
 router.put('/api/transactions/:id/status', authenticateToken, transactionsController.updateStatus);

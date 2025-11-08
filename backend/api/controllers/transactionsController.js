@@ -1,6 +1,7 @@
 const pool = require('../../db/connection');
 const auditLogger = require('../../services/auditLogger');
 const notificationService = require('../../bot/services/notificationService');
+const webhookService = require('../../services/webhookService');
 
 function buildTransactionFilterClauses({ status, type, from, to, search }) {
   const conditions = [];
@@ -182,6 +183,15 @@ async function updateStatus(req, res) {
     } finally {
       client.release();
     }
+
+    await webhookService.emit('transactions.status_changed', {
+      transactionId: parseInt(id, 10),
+      previousStatus: transaction.status,
+      newStatus: status,
+      admin: req.user?.username || req.user?.id,
+      eventSource: 'admin_panel',
+      motivo: motivo || null
+    });
     
     // Log audit
     await auditLogger.log(

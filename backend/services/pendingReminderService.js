@@ -1,5 +1,6 @@
 const pool = require('../db/connection');
 const groupManager = require('../bot/utils/groupManager');
+const { escapeMarkdown } = require('../utils/helpers');
 
 const CHECK_INTERVAL_MINUTES = 5;
 const RE_ALERT_INTERVAL_MINUTES = 30;
@@ -43,11 +44,13 @@ async function checkPendingTransactions() {
     }
 
     const lines = result.rows.map((tx) => {
-      const createdAt = new Date(tx.created_at).toLocaleString('es-AR');
-      const tipo = tx.type === 'carga' ? 'Carga de saldo' : 'Pago';
-      const estado = tx.status.toUpperCase();
-      const monto = `${parseFloat(tx.amount_usdt || 0).toFixed(2)} USDT`;
-      return `• #${tx.id} – ${tipo} – Usuario: @${tx.username || 'sin_username'}\n  Estado: ${estado} | Importe: ${monto}\n  Creado: ${createdAt}`;
+      const createdAt = escapeMarkdown(new Date(tx.created_at).toLocaleString('es-AR'));
+      const tipo = escapeMarkdown(tx.type === 'carga' ? 'Carga de saldo' : 'Pago');
+      const estado = escapeMarkdown(tx.status.toUpperCase());
+      const monto = escapeMarkdown(`${parseFloat(tx.amount_usdt || 0).toFixed(2)} USDT`);
+      const id = escapeMarkdown(tx.id);
+      const username = escapeMarkdown(tx.username || 'sin_username');
+      return `• #${id} – ${tipo} – Usuario: @${username}\n  Estado: ${estado} | Importe: ${monto}\n  Creado: ${createdAt}`;
     });
 
     const header = `⚠️ *Transacciones pendientes (${threshold} minutos o más)*\n\n`;
