@@ -1322,6 +1322,90 @@ const commands = {
       console.error('Error in /politicas:', error);
       await ctx.reply('❌ Error al mostrar políticas');
     }
+  },
+
+  async allcomands(ctx) {
+    try {
+      const userCommands = [
+        '`/start` — Menú principal.',
+        '`/pagar` — Asistente de pagos.',
+        '`/cargar` — Cargar saldo.',
+        '`/saldo` — Ver saldo actual.',
+        '`/movimientos` — Historial detallado.',
+        '`/historial` — Últimos pagos acreditados.',
+        '`/preguntas` — Centro de asistencia.',
+        '`/notificaciones` — Configurar alertas.',
+        '`/politicas` — Ver políticas del servicio.',
+        '`/me` — Datos del usuario.'
+      ].join('\n');
+
+      const superAdminCommands = [
+        '*Superadmin:*',
+        '`/admin` — Panel de administración.',
+        '`/cancelar` — Cancelar transacciones.',
+        '`/wallet` — Listado de wallets.',
+        '`/logs` — Logs del sistema.',
+        '`/config` — Configuración.',
+        '`/setgroupchatid` — Registrar chats.',
+        '`/eliminarsaldo` — Ajustar saldo.',
+        '`/banear` — Banear usuarios temporalmente.',
+        '`/noticia` — Enviar anuncios masivos.',
+        '`/resumen` — Resumen diario.',
+        '`/info` — Consultar datos de usuario.',
+        '`/trc20` / `/bep20` — Enlaces de monitoreo.',
+        '`/comandosop` — Ver lista admin.'
+      ].join('\n');
+
+      const operatorCommands = [
+        '*Operador:*',
+        '`/admin`, `/cancelar`, `/logs`, `/resumen`, `/info`, `/trc20`, `/bep20`, `/comandosop`'
+      ].join('\n');
+
+      const auditorCommands = [
+        '*Auditor:*',
+        '`/admin`, `/logs`, `/comandosop`'
+      ].join('\n');
+
+      const groupCommands = [
+        '*En grupos de administración:*',
+        '`/trc20` — Link Tronscan.',
+        '`/bep20` — Link BSCScan.',
+        '`/comandosgrupo` — Lista de comandos para grupos.'
+      ].join('\n');
+
+      const message = [
+        '📚 *Listado completo de comandos*',
+        '',
+        '👥 *Usuarios:*',
+        userCommands,
+        '',
+        '🛠 *Administradores:*',
+        superAdminCommands,
+        '',
+        operatorCommands,
+        '',
+        auditorCommands,
+        '',
+        groupCommands,
+        '',
+        '✅ Algunos comandos requieren rol específico. Usa `/comandos` para la versión resumida.'
+      ].join('\n');
+
+      const keyboard = {
+        reply_markup: {
+          keyboard: [
+            [{ text: '🏠 MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
+        }
+      };
+
+      await ctx.replyWithMarkdown(message, keyboard);
+    } catch (error) {
+      console.error('Error in /allcomands:', error);
+      await ctx.reply('❌ Error al mostrar el listado completo de comandos.');
+    }
   }
 };
 

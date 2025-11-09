@@ -118,6 +118,7 @@ bot.command('bep20', adminHandlers.bep20);
 bot.command('comandos', commandHandlers.comandos);
 bot.command('comandosgrupo', commandHandlers.comandosgrupo);
 bot.command('comandosop', commandHandlers.comandosop);
+bot.command('allcomands', commandHandlers.allcomands);
 bot.command('politicas', commandHandlers.politicas);
 bot.command('banear', adminHandlers.banear);
 bot.command('notificaciones', commandHandlers.notificaciones);
@@ -353,7 +354,8 @@ async function startBot() {
               { command: 'me', description: '🧾 MIS DATOS - Ver tu ID y usuario' },
               { command: 'resumen', description: '📈 RESUMEN - Estadísticas del día (admins)' },
               { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' },
-              { command: 'notificaciones', description: '🔔 Configurar notificaciones' }
+              { command: 'notificaciones', description: '🔔 Configurar notificaciones' },
+              { command: 'allcomands', description: '📚 TODOS LOS COMANDOS - Guía completa' }
             ]);
       console.log('✅ Bot commands menu configured');
     } catch (cmdError) {
