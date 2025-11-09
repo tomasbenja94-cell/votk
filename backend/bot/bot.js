@@ -104,6 +104,7 @@ bot.command('macro', commandHandlers.macro);
 bot.command('rentas', commandHandlers.rentas);
 bot.command('otroservicio', commandHandlers.otroservicio);
 bot.command('movimientos', commandHandlers.movimientos);
+bot.command('me', commandHandlers.me);
 bot.command('admin', adminHandlers.authenticate);
 bot.command('cancelar', adminHandlers.cancelar);
 bot.command('wallet', adminHandlers.wallet);
@@ -343,6 +344,7 @@ async function startBot() {
               { command: 'macro', description: '🏦 MACRO - Operaciones Macro / PlusPagos' },
               { command: 'rentas', description: '🏠 RENTAS - Rentas Córdoba' },
               { command: 'otroservicio', description: '🧾 OTRO SERVICIO - Otros pagos' },
+              { command: 'me', description: '🧾 MIS DATOS - Ver tu ID y usuario' },
               { command: 'resumen', description: '📈 RESUMEN - Estadísticas del día (admins)' },
               { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' },
               { command: 'notificaciones', description: '🔔 Configurar notificaciones' }

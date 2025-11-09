@@ -1078,6 +1078,45 @@ const commands = {
     }
   },
 
+  async me(ctx) {
+    try {
+      const userId = ctx.from?.id;
+      const username = ctx.from?.username ? `@${ctx.from.username}` : 'sin_username';
+      const firstName = ctx.from?.first_name || '';
+      const lastName = ctx.from?.last_name || '';
+
+      const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+      const lines = [
+        '🧾 *Identificación de usuario*',
+        '',
+        `🆔 *ID:* ${userId}`,
+        `👤 *Usuario:* ${username}`,
+      ];
+
+      if (fullName) {
+        lines.push(`📛 *Nombre:* ${fullName}`);
+      }
+
+      lines.push('', '⬅️ *Regresar al menú principal*');
+
+      const keyboard = {
+        reply_markup: {
+          keyboard: [
+            [{ text: '🏠 MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
+        }
+      };
+
+      await ctx.replyWithMarkdown(lines.join('\n'), keyboard);
+    } catch (error) {
+      console.error('Error in /me:', error);
+      await ctx.reply('❌ No fue posible obtener tus datos. Intenta nuevamente.');
+    }
+  },
+
   async comandosop(ctx) {
     try {
       const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
