@@ -1657,25 +1657,38 @@ const handlers = {
         try {
           const originalText = ctx.callbackQuery.message.text || ctx.callbackQuery.message.caption || '';
           
-          // Edit message to show PAGADO status
-          const pagadoText = originalText.replace(/Estado:.*/i, `Estado: ✅ PAGADO por @${ctx.from.username || 'admin'}`);
+          // Edit message to show PAGADO status (remove inline keyboard)
+          const pagadoText = originalText.replace(/Estado:.*/i, 'Estado: PAGADO');
           
+          let edited = false;
           try {
             await ctx.editMessageText(
-              pagadoText + '\n\n✅ *Pagado por @' + (ctx.from.username || 'admin') + '*',
-              { parse_mode: 'Markdown' }
+              pagadoText,
+              { reply_markup: { inline_keyboard: [] } }
             );
+            edited = true;
           } catch (editTextError) {
             // If it's a photo message, try editing caption
             try {
               await ctx.editMessageCaption(
-                pagadoText + '\n\n✅ *Pagado por @' + (ctx.from.username || 'admin') + '*',
-                { parse_mode: 'Markdown' }
+                pagadoText,
+                { reply_markup: { inline_keyboard: [] } }
               );
+              edited = true;
             } catch (editCaptionError) {
               console.log('Could not edit message text or caption:', editCaptionError.message);
             }
           }
+
+          if (!edited) {
+            // As a fallback, try removing the inline keyboard directly
+            try {
+              await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+            } catch (replyMarkupError) {
+              console.log('Could not remove reply markup:', replyMarkupError.message);
+            }
+          }
+
           console.log(`✅ Mensaje de orden ${transactionId} marcado como PAGADO en el grupo`);
         } catch (error) {
           console.error('Error editing message to show PAGADO:', error);

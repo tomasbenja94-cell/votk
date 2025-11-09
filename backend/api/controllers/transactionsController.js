@@ -233,11 +233,79 @@ async function updateStatus(req, res) {
   }
 }
 
+let deletedTransactionsPrepared = false;
+
+async function ensureDeletedTransactionsTable(client) {
+  if (deletedTransactionsPrepared) {
+    return;
+  }
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS deleted_transactions (
+      id SERIAL PRIMARY KEY,
+      original_id INT,
+      user_id INT,
+      telegram_id BIGINT,
+      username TEXT,
+      type TEXT,
+      amount_usdt NUMERIC(18,2),
+      amount_ars NUMERIC(18,2),
+      identifier TEXT,
+      status TEXT,
+      admin_id INT,
+      proof_image TEXT,
+      motivo TEXT,
+      original_created_at TIMESTAMP,
+      original_updated_at TIMESTAMP,
+      original_review_started_at TIMESTAMP,
+      original_admitted_at TIMESTAMP,
+      original_paid_at TIMESTAMP,
+      original_cancelled_at TIMESTAMP,
+      deleted_at TIMESTAMP DEFAULT NOW(),
+      deleted_by TEXT
+    )
+  `);
+
+  const alterStatements = [
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_id INT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS user_id INT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS telegram_id BIGINT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS username TEXT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS type TEXT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS amount_usdt NUMERIC(18,2)`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS amount_ars NUMERIC(18,2)`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS identifier TEXT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS status TEXT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS admin_id INT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS proof_image TEXT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS motivo TEXT`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_created_at TIMESTAMP`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_updated_at TIMESTAMP`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_review_started_at TIMESTAMP`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_admitted_at TIMESTAMP`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_paid_at TIMESTAMP`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS original_cancelled_at TIMESTAMP`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP DEFAULT NOW()`,
+    `ALTER TABLE deleted_transactions ADD COLUMN IF NOT EXISTS deleted_by TEXT`
+  ];
+
+  for (const statement of alterStatements) {
+    await client.query(statement);
+  }
+
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_deleted_transactions_deleted_at ON deleted_transactions(deleted_at)`);
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_deleted_transactions_telegram_id ON deleted_transactions(telegram_id)`);
+
+  deletedTransactionsPrepared = true;
+}
+
 async function clearAll(req, res) {
   try {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      await ensureDeletedTransactionsTable(client);
       
       // Get all transactions
       const allTransactions = await client.query(`
