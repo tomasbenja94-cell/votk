@@ -531,7 +531,6 @@ const handlers = {
 
       const transaction = transactionResult.rows[0];
       const originalStatus = transaction.status;
-      const originalStatus = transaction.status;
 
       // Refund balance if it was a payment
       if (transaction.type === 'pago') {
