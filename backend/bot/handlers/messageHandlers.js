@@ -41,9 +41,10 @@ function createReceiptPDFBuffer({ transactionId, headerName, serviceName, codeLa
 
       doc.fontSize(14).text(`Transacción #: ${transactionId}`, { align: 'left' });
       doc.moveDown();
-      doc.fontSize(18).text('╔══════════════════════════╗', { align: 'center' });
+      const borderLine = '==============================';
+      doc.fontSize(18).text(borderLine, { align: 'center' });
       doc.fontSize(16).text(`PAGO - ${cleanHeader}`, { align: 'center' });
-      doc.fontSize(18).text('╚══════════════════════════╝', { align: 'center' });
+      doc.fontSize(18).text(borderLine, { align: 'center' });
       doc.moveDown();
       doc.fontSize(14).text(`Servicio: ${cleanServiceName}`);
       doc.text(`${cleanCodeLabel}: ${cleanCodeValue}`);
@@ -1321,19 +1322,21 @@ const handlers = {
           [userMessageInfo, transaction.id]
         );
 
-        const receiptMsg = await sendPaymentReceiptPDF(ctx, {
+        const receiptDetails = {
           transactionId: transaction.id,
           headerName: servicioText || 'MACRO/PLUS',
           serviceName: servicioText !== 'N/A' ? servicioText : 'Macro / PlusPagos',
           codeLabel: 'Número / DNI',
           codeValue: dniText || 'N/A',
           amountFormatted: montoFormateado
-        });
+        };
+
+        await ctx.answerCbQuery('✅ Pago confirmado');
+
+        const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
         if (receiptMsg) {
           chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
         }
-
-        await ctx.answerCbQuery('✅ Pago confirmado');
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
@@ -1575,6 +1578,8 @@ const handlers = {
           [userMessageInfo, transaction.id]
         );
 
+        await ctx.answerCbQuery('✅ Orden confirmada');
+
         if (receiptDetails) {
           receiptDetails.amountFormatted = montoFormateado;
           const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
@@ -1582,8 +1587,6 @@ const handlers = {
             chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
           }
         }
-
-        await ctx.answerCbQuery('✅ Orden confirmada');
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
@@ -1848,6 +1851,9 @@ const handlers = {
           [finalProofImage, transaction.id]
         );
 
+        stateManager.clearState(ctx.from.id);
+        await ctx.answerCbQuery('✅ Orden confirmada');
+
         if (receiptDetails) {
           receiptDetails.amountFormatted = montoFormateado;
           const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
@@ -1855,9 +1861,6 @@ const handlers = {
             chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
           }
         }
-        
-        stateManager.clearState(ctx.from.id);
-        await ctx.answerCbQuery('✅ Orden confirmada');
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
