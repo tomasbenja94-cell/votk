@@ -117,6 +117,7 @@ const commands = {
         `Somos su plataforma corporativa para gestionar pagos automatizados con activos digitales.\n\n` +
         `*Comandos disponibles:*\n` +
         `/pagar - Iniciar una solicitud de pago\n` +
+        `/preguntas - Realizar consultas frecuentes\n` +
         `/saldo - Consultar su saldo disponible\n` +
         `/cargar - Acreditar fondos en su cuenta`;
 
@@ -127,7 +128,8 @@ const commands = {
             [{ text: '💰 CARGAR SALDO' }],
             [{ text: '💵 SALDO' }],
             [{ text: '📊 HISTORIAL' }],
-            [{ text: '🔔 NOTIFICACIONES' }]
+            [{ text: '🔔 NOTIFICACIONES' }],
+            [{ text: '❓ PREGUNTAS' }]
           ],
           resize_keyboard: true,
           one_time_keyboard: false
@@ -1020,6 +1022,7 @@ const commands = {
         `*Comandos principales:*\n` +
         `/start - Muestra el menú principal\n` +
         `/pagar - Iniciar un pago\n` +
+        `/preguntas - Centro de ayuda con IA\n` +
         `/cargar - Cargar saldo a tu cuenta\n` +
         `/saldo - Ver tu saldo disponible\n` +
         `/movimientos - Ver tu historial de transacciones\n` +
@@ -1147,6 +1150,36 @@ const commands = {
     } catch (error) {
       console.error('Error in /comandosop:', error);
       await ctx.reply('❌ Error al mostrar comandos de administración');
+    }
+  },
+
+  async preguntas(ctx) {
+    try {
+      await chatManager.cleanChat(ctx, ctx.from.id, 1);
+
+      stateManager.setState(ctx.from.id, 'preguntas_waiting_question');
+
+      const message = `❓ *Centro de Preguntas*\n\n` +
+        `Estoy listo para ayudarte con información del servicio.\n\n` +
+        `✍️ *Escribe tu pregunta en un mensaje.*\n` +
+        `✅ La IA responderá automáticamente con los datos del bot.\n\n` +
+        `📌 Para volver al menú principal usa el botón o escribe *MENU*.`;
+
+      const keyboard = {
+        reply_markup: {
+          keyboard: [
+            [{ text: '🏠 MENU PRINCIPAL' }]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
+        }
+      };
+
+      const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+      chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+    } catch (error) {
+      console.error('Error in /preguntas:', error);
+      await ctx.reply('❌ No fue posible abrir el centro de preguntas. Intenta nuevamente.');
     }
   },
 

@@ -104,6 +104,7 @@ bot.command('macro', commandHandlers.macro);
 bot.command('rentas', commandHandlers.rentas);
 bot.command('otroservicio', commandHandlers.otroservicio);
 bot.command('movimientos', commandHandlers.movimientos);
+bot.command('preguntas', commandHandlers.preguntas);
 bot.command('me', commandHandlers.me);
 bot.command('admin', adminHandlers.authenticate);
 bot.command('cancelar', adminHandlers.cancelar);
@@ -280,6 +281,9 @@ bot.on('text', async (ctx) => {
   } else if (text === '🔔 NOTIFICACIONES' || text === 'NOTIFICACIONES') {
     await commandHandlers.notificaciones(ctx);
     return;
+  } else if (text === '❓ PREGUNTAS' || text === 'PREGUNTAS') {
+    await commandHandlers.preguntas(ctx);
+    return;
   } else if (text === '🏠 MENU PRINCIPAL' || text === 'MENU PRINCIPAL') {
     await commandHandlers.start(ctx);
     return;
@@ -340,6 +344,7 @@ async function startBot() {
               { command: 'saldo', description: '💰 VER SALDO - Ver saldo disponible' },
               { command: 'cargar', description: '🪙 CARGAR - Acreditar saldo a tu cuenta' },
               { command: 'pagar', description: '💸 PAGAR - Menú general de pagos' },
+              { command: 'preguntas', description: '❓ PREGUNTAS - Centro de ayuda con IA' },
               { command: 'multas', description: '🏛️ MULTAS - Gestionar pagos de multas' },
               { command: 'macro', description: '🏦 MACRO - Operaciones Macro / PlusPagos' },
               { command: 'rentas', description: '🏠 RENTAS - Rentas Córdoba' },

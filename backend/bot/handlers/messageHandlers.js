@@ -7,6 +7,8 @@ const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
 const webhookService = require('../../services/webhookService');
 const groupManager = require('../utils/groupManager');
+const qaService = require('../../services/qaService');
+const commands = require('../commands');
 const adminHandlers = require('../admin/adminHandlers');
 const config = require('../../config/default.json');
 const fs = require('fs');
@@ -92,6 +94,9 @@ const handlers = {
         break;
       case 'admin_security_question':
         await this.handleAdminSecurityQuestion(ctx, text);
+        break;
+      case 'preguntas_waiting_question':
+        await this.handlePreguntaIA(ctx, text);
         break;
     }
   },
@@ -2178,6 +2183,38 @@ const handlers = {
       } catch (replyError) {
         console.error('Error sending security question error message:', replyError);
       }
+    }
+  }
+
+  async handlePreguntaIA(ctx, question) {
+    try {
+      const trimmed = (question || '').trim();
+      if (!trimmed) {
+        await ctx.reply('⚠️ Escribe una pregunta para que pueda ayudarte.');
+        return;
+      }
+
+      if (trimmed.toUpperCase() === 'MENU') {
+        stateManager.clearState(ctx.from.id);
+        await commands.start(ctx);
+        return;
+      }
+
+      const answer = qaService.getAnswer(trimmed);
+
+      const response = [
+        '🤖 *Respuesta inteligente*',
+        '',
+        answer,
+        '',
+        '_Puedes enviar otra pregunta o escribir MENU para volver._'
+      ].join('\n');
+
+      await ctx.replyWithMarkdown(response);
+      // Mantener el estado para permitir más preguntas
+    } catch (error) {
+      console.error('Error in handlePreguntaIA:', error);
+      await ctx.reply('❌ No pude procesar la pregunta. Intenta nuevamente en unos segundos.');
     }
   }
 };
