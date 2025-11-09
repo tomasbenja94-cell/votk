@@ -1160,24 +1160,23 @@ const commands = {
       stateManager.setState(ctx.from.id, 'preguntas_waiting_question');
 
       const availableQuestions = [
-        '`¿Cómo funciona /pagar?`',
-        '`¿Qué incluye el menú PAGAR MULTAS PBA?`',
-        '`¿Cómo cargo saldo con /cargar?`',
-        '`¿Cómo consulto mi saldo con /saldo?`',
-        '`¿Dónde veo mis movimientos con /movimientos?`',
-        '`¿Para qué sirve /notificaciones?`',
-        '`¿Qué información entrega /preguntas?`',
-        '`¿Qué datos muestra /me?`',
-        '`¿Qué opciones hay en Rentas Córdoba?`',
-        '`¿Cuál es la comisión del 20%?`',
-        '`¿Qué pasa después de enviar un comprobante?`',
-        '`¿Cómo contacto a un administrador?`'
+        '`1. ¿Cómo funciona /pagar?`',
+        '`2. ¿Cómo cargo saldo con /cargar?`',
+        '`3. ¿Cómo consulto mi saldo con /saldo?`',
+        '`4. ¿Dónde veo mis movimientos con /movimientos?`',
+        '`5. ¿Para qué sirve /notificaciones?`',
+        '`6. ¿Qué información entrega /preguntas?`',
+        '`7. ¿Qué datos muestra /me?`',
+        '`8. ¿Qué opciones hay en Rentas Córdoba?`',
+        '`9. ¿Cuál es la comisión del 20%?`',
+        '`10. ¿Qué pasa después de enviar un comprobante?`',
+        '`11. ¿Cómo contacto a un administrador?`'
       ].join('\n');
 
       const message = [
         '❓ *Centro de Preguntas*',
         '',
-        '✍️ *Escribe tu pregunta en un mensaje.*',
+        '✍️ *Escribe tu pregunta en un mensaje.* Podés copiar y pegar la consulta tal cual aparece o indicar el número correspondiente.',
         '',
         'Preguntas sugeridas:',
         availableQuestions,

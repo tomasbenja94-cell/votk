@@ -36,13 +36,25 @@ const knowledgeBase = [
     intent: 'comandos_principales',
     keywords: ['comandos', 'menu', 'opciones', 'funciones'],
     answer:
-      'Comandos principales: `/pagar`, `/cargar`, `/saldo`, `/movimientos`, `/notificaciones`, `/preguntas`. Podés volver al menú en cualquier momento usando el botón *MENU PRINCIPAL*.'
+      'Comandos principales: `/pagar`, `/cargar`, `/saldo`, `/movimientos`, `/notificaciones`, `/preguntas`, `/me`. Copiá la pregunta sugerida o indicá el número que corresponde y recibirás la respuesta. Podés volver al menú usando el botón *MENU PRINCIPAL*.'
   },
   {
     intent: 'rentas_info',
     keywords: ['rentas', 'cordoba', 'impuesto', 'ingresos', 'automotor', 'inmobiliario'],
     answer:
       'En `/pagar` → Rentas Córdoba podés elegir Automotor, Inmobiliario, Ingresos Brutos, Sellos o Multas Caminera. El bot te pedirá los datos específicos y luego confirmará con el 20% correspondiente.'
+  },
+  {
+    intent: 'preguntas_info',
+    keywords: ['preguntas', 'ia', 'centro', 'faq', 'consultas'],
+    answer:
+      'El comando `/preguntas` abre el centro de asistencia con IA. Copiá una de las preguntas sugeridas o escribí el número correspondiente y recibirás la respuesta basada en los datos del bot. Para salir, escribí `MENU` o usá el botón *MENU PRINCIPAL*.'
+  },
+  {
+    intent: 'menu_principal',
+    keywords: ['menu principal', 'volver', 'regresar', 'menu'],
+    answer:
+      'Para regresar al menú principal podés usar el botón *MENU PRINCIPAL* del teclado o escribir simplemente `MENU`.'
   }
 ];
 
