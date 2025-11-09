@@ -531,6 +531,7 @@ const handlers = {
 
       const transaction = transactionResult.rows[0];
       const originalStatus = transaction.status;
+      const originalStatus = transaction.status;
 
       // Refund balance if it was a payment
       if (transaction.type === 'pago') {
@@ -2162,7 +2163,8 @@ const handlers = {
       }
 
       const transaction = transactionResult.rows[0];
-
+      const originalStatus = transaction.status;
+      
       if (transaction.status !== 'pendiente') {
         await ctx.answerCbQuery('⚠️ Esta transacción ya fue procesada', true);
         return;
@@ -2313,7 +2315,8 @@ const handlers = {
       }
 
       const transaction = transactionResult.rows[0];
-
+      const originalStatus = transaction.status;
+      
       if (transaction.status !== 'pendiente') {
         await ctx.answerCbQuery('⚠️ Esta transacción ya fue procesada', true);
         return;

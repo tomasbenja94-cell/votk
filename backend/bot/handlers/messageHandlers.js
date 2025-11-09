@@ -705,9 +705,13 @@ const handlers = {
     stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), nombre_servicio: nombreServicioOnly });
     stateManager.setState(ctx.from.id, 'pagar_macro_waiting_dni');
     
-    const message = await messageService.getMessage('pagar_macro_codigo', {
-      servicio: nombreServicioOnly
-    });
+    const message = [
+      `🧾 Servicio registrado: *${nombreServicioOnly}*`,
+      '',
+      '🔢 Ingresá el código de pago / número de servicio asociado:',
+      '',
+      '⬅️ *Regresar al menú principal*'
+    ].join('\n');
     
     const keyboard = {
       reply_markup: {
@@ -717,7 +721,6 @@ const handlers = {
       }
     };
     
-    // NO limpiar mensajes durante el flujo de entrada de datos - solo responder
     const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
     chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
   },
@@ -732,13 +735,19 @@ const handlers = {
     }
     
     stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), dni: dniOnly });
-    // Ir directo a monto, sin pedir nombre del titular
     stateManager.setState(ctx.from.id, 'pagar_macro_waiting_monto');
     
-    const codigoMsg = await messageService.getMessage('pagar_macro_codigo', {
-      codigo: dniOnly
-    });
-    const message = codigoMsg;
+    const message = [
+      `+ 🔢 Código de pago registrado: *${dniOnly}*`,
+      '',
+      '💰 Ingresá el monto total en ARS:',
+      '',
+      '📝 *Formato:*',
+      'Ejemplo: `500000,00`',
+      'Se interpreta como: *$ 500.000,00*',
+      '',
+      '⬅️ *Regresar al menú principal*'
+    ].join('\n');
     
     const keyboard = {
       reply_markup: {
@@ -748,7 +757,6 @@ const handlers = {
       }
     };
     
-    // NO limpiar mensajes durante el flujo de entrada de datos - solo responder
     const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
     chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
   },

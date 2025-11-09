@@ -45,6 +45,7 @@ router.put('/api/messages', authenticateToken, messagesController.update);
 router.get('/api/wallet-transactions', authenticateToken, walletTransactionsController.getTransactions);
 
 router.get('/api/admins', authenticateToken, adminsController.getAll);
+router.post('/api/admins', authenticateToken, adminsController.create);
 router.put('/api/admins/:id', authenticateToken, adminsController.update);
 
 router.get('/api/webhooks', authenticateToken, webhooksController.getAll);

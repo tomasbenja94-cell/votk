@@ -119,6 +119,7 @@ export const walletTransactionsAPI = {
 
 export const adminsAPI = {
   getAll: () => api.get('/api/admins'),
+  create: (data) => api.post('/api/admins', data),
   update: (id, data) => api.put(`/api/admins/${id}`, data)
 };
 
