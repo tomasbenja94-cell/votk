@@ -2184,7 +2184,7 @@ const handlers = {
         console.error('Error sending security question error message:', replyError);
       }
     }
-  }
+  },
 
   async handlePreguntaIA(ctx, question) {
     try {
