@@ -2143,7 +2143,7 @@ const handlers = {
       stateManager.clearState(ctx.from.id);
       await ctx.reply('❌ Error al enviar noticia con imagen.');
     }
-  }
+  },
 
   async handleAdminSecurityQuestion(ctx, answer) {
     try {
