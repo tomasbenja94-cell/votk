@@ -2580,6 +2580,65 @@ const handlers = {
       console.error('Error in /resumen:', error);
       await ctx.reply('❌ Error al generar resumen.');
     }
+  },
+
+  async userInfo(ctx) {
+    try {
+      const adminContext = await ensureAdminPermission(ctx, 'manageUsers');
+      if (!adminContext) {
+        return;
+      }
+
+      const messageText = ctx.message.text || '';
+      const parts = messageText.trim().split(/\s+/);
+
+      if (parts.length < 2) {
+        await ctx.reply('❌ Uso: /info <@usuario | ID>');
+        return;
+      }
+
+      const target = parts[1];
+      let userRow = null;
+
+      if (target.startsWith('@')) {
+        const username = target.slice(1).toLowerCase();
+        const result = await pool.query(
+          'SELECT id, telegram_id, username, saldo_usdt, created_at FROM users WHERE LOWER(username) = $1',
+          [username]
+        );
+        if (result.rows.length > 0) {
+          userRow = result.rows[0];
+        }
+      } else if (/^\d+$/.test(target)) {
+        const result = await pool.query(
+          'SELECT id, telegram_id, username, saldo_usdt, created_at FROM users WHERE telegram_id = $1',
+          [target]
+        );
+        if (result.rows.length > 0) {
+          userRow = result.rows[0];
+        }
+      }
+
+      if (!userRow) {
+        await ctx.reply('❌ Usuario no encontrado.');
+        return;
+      }
+
+      const lines = [
+        '🧾 *Información de usuario*',
+        '',
+        `🆔 *ID interno:* ${userRow.id}`,
+        `👤 *Telegram ID:* ${userRow.telegram_id}`,
+        `📛 *Username:* ${userRow.username || 'sin_username'}`,
+        `💰 *Saldo:* ${(parseFloat(userRow.saldo_usdt) || 0).toFixed(2)} USDT`,
+        `📅 *Creado:* ${userRow.created_at ? new Date(userRow.created_at).toLocaleString('es-AR') : '—'}`
+      ].join('\n');
+
+      await ctx.replyWithMarkdown(lines);
+    } catch (error) {
+      console.error('Error in userInfo:', error);
+      await ctx.reply('❌ Error al obtener información del usuario.');
+    }
   }
 };
 

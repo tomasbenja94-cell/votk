@@ -123,6 +123,7 @@ bot.command('banear', adminHandlers.banear);
 bot.command('notificaciones', commandHandlers.notificaciones);
 bot.command('noticia', adminHandlers.noticia);
 bot.command('resumen', adminHandlers.resumen);
+bot.command('info', adminHandlers.userInfo);
 
 // Register callbacks
 bot.on('callback_query', async (ctx) => {

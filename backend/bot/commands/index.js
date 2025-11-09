@@ -112,14 +112,17 @@ const commands = {
       }
       
       // Welcome message with new format
-      const welcomeMessage = `🤖 *Bienvenido a Binopolis Pay*\n\n` +
-        `Estimado/a ${ctx.from.first_name || 'cliente'},\n\n` +
-        `Somos su plataforma corporativa para gestionar pagos automatizados con activos digitales.\n\n` +
-        `*Comandos disponibles:*\n` +
-        `/pagar - Iniciar una solicitud de pago\n` +
-        `/preguntas - Realizar consultas frecuentes\n` +
-        `/saldo - Consultar su saldo disponible\n` +
-        `/cargar - Acreditar fondos en su cuenta`;
+      const nameLabel = ctx.from.first_name || ctx.from.username || 'Cliente';
+      const welcomeMessage = `💠 *Bienvenido a Binopolis Pay* 🤖\n\n` +
+        `Estimado/a ${nameLabel} (${ctx.from.id}),\n\n` +
+        `¡Gracias por usar Binopolis Pay, el sistema automatizado de pagos más completo de Telegram! ⚡\n\n` +
+        `🔹 *Comandos disponibles:*\n` +
+        `/pagar — Iniciar una nueva solicitud de pago\n` +
+        `/preguntas — Consultar preguntas frecuentes\n` +
+        `/saldo — Ver tu saldo actual\n` +
+        `/cargar — Cargar fondos en tu cuenta\n` +
+        `/me — Mostrar tu información de usuario\n` +
+        `/info — (Admins) Consultar datos de un usuario`;
 
       const keyboard = {
         reply_markup: {
