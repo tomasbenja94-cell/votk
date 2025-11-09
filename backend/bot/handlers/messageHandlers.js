@@ -1225,8 +1225,9 @@ const handlers = {
         };
 
         // Send to admin groups
+        const botInstance = require('../bot').bot;
         try {
-          await groupManager.sendToAdminGroups(bot, adminMessage, {
+          await groupManager.sendToAdminGroups(botInstance, adminMessage, {
             reply_markup: adminKeyboard.reply_markup
           });
         } catch (error) {
