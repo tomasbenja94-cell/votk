@@ -21,24 +21,6 @@ const ADMIN_PERMISSIONS = {
     manageConfig: true,
     manageBalance: true,
     broadcast: true
-  },
-  operador: {
-    access: true,
-    processPayments: true,
-    manageWallets: false,
-    manageUsers: false,
-    manageConfig: false,
-    manageBalance: false,
-    broadcast: false
-  },
-  auditor: {
-    access: true,
-    processPayments: false,
-    manageWallets: false,
-    manageUsers: false,
-    manageConfig: false,
-    manageBalance: false,
-    broadcast: false
   }
 };
 

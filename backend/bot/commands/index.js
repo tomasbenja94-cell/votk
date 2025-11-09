@@ -1326,6 +1326,12 @@ const commands = {
 
   async allcomands(ctx) {
     try {
+      const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+      if (!adminContext || adminContext.active === false || (adminContext.role || '').toLowerCase() !== 'superadmin') {
+        await ctx.reply('❌ Solo los administradores autorizados pueden ver el listado completo.');
+        return;
+      }
+
       const userCommands = [
         '`/start` — Menú principal.',
         '`/pagar` — Asistente de pagos.',
@@ -1340,7 +1346,6 @@ const commands = {
       ].join('\n');
 
       const superAdminCommands = [
-        '*Superadmin:*',
         '`/admin` — Panel de administración.',
         '`/cancelar` — Cancelar transacciones.',
         '`/wallet` — Listado de wallets.',
@@ -1352,18 +1357,9 @@ const commands = {
         '`/noticia` — Enviar anuncios masivos.',
         '`/resumen` — Resumen diario.',
         '`/info` — Consultar datos de usuario.',
+        '`/allcomands` — Guía completa de comandos.',
         '`/trc20` / `/bep20` — Enlaces de monitoreo.',
         '`/comandosop` — Ver lista admin.'
-      ].join('\n');
-
-      const operatorCommands = [
-        '*Operador:*',
-        '`/admin`, `/cancelar`, `/logs`, `/resumen`, `/info`, `/trc20`, `/bep20`, `/comandosop`'
-      ].join('\n');
-
-      const auditorCommands = [
-        '*Auditor:*',
-        '`/admin`, `/logs`, `/comandosop`'
       ].join('\n');
 
       const groupCommands = [
@@ -1379,12 +1375,8 @@ const commands = {
         '👥 *Usuarios:*',
         userCommands,
         '',
-        '🛠 *Administradores:*',
+        '🛠 *Superadministradores:*',
         superAdminCommands,
-        '',
-        operatorCommands,
-        '',
-        auditorCommands,
         '',
         groupCommands,
         '',

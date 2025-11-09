@@ -352,10 +352,9 @@ async function startBot() {
               { command: 'rentas', description: '🏠 RENTAS - Rentas Córdoba' },
               { command: 'otroservicio', description: '🧾 OTRO SERVICIO - Otros pagos' },
               { command: 'me', description: '🧾 MIS DATOS - Ver tu ID y usuario' },
-              { command: 'resumen', description: '📈 RESUMEN - Estadísticas del día (admins)' },
               { command: 'movimientos', description: '📋 MOVIMIENTOS - Ver todos tus movimientos' },
               { command: 'notificaciones', description: '🔔 Configurar notificaciones' },
-              { command: 'allcomands', description: '📚 TODOS LOS COMANDOS - Guía completa' }
+              { command: 'resumen', description: '📈 RESUMEN - Estadísticas del día (admins)' }
             ]);
       console.log('✅ Bot commands menu configured');
     } catch (cmdError) {
