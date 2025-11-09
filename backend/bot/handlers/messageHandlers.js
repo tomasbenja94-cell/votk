@@ -7,6 +7,7 @@ const chatManager = require('../utils/chatManager');
 const animationManager = require('../utils/animations');
 const webhookService = require('../../services/webhookService');
 const groupManager = require('../utils/groupManager');
+const adminHandlers = require('../admin/adminHandlers');
 const config = require('../../config/default.json');
 const fs = require('fs');
 const path = require('path');
@@ -88,6 +89,9 @@ const handlers = {
         break;
       case 'admin_sending_noticia':
         await this.handleAdminNoticia(ctx, text);
+        break;
+      case 'admin_security_question':
+        await this.handleAdminSecurityQuestion(ctx, text);
         break;
     }
   },
@@ -2138,6 +2142,34 @@ const handlers = {
       console.error('Error in handleAdminNoticiaPhoto:', error);
       stateManager.clearState(ctx.from.id);
       await ctx.reply('❌ Error al enviar noticia con imagen.');
+    }
+  }
+
+  async handleAdminSecurityQuestion(ctx, answer) {
+    try {
+      const pendingData = stateManager.getData(ctx.from.id) || {};
+      if (!pendingData.adminSecurityPending) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ Acceso denegado.');
+        return;
+      }
+
+      const normalizedAnswer = (answer || '').trim().toUpperCase();
+      if (normalizedAnswer !== 'LOS GAYS') {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ Respuesta incorrecta. Acceso denegado.');
+        return;
+      }
+
+      await adminHandlers.completeAdminSecurityVerification(ctx);
+    } catch (error) {
+      console.error('Error in handleAdminSecurityQuestion:', error);
+      stateManager.clearState(ctx.from.id);
+      try {
+        await ctx.reply('❌ Error al completar la autenticación. Intenta nuevamente.');
+      } catch (replyError) {
+        console.error('Error sending security question error message:', replyError);
+      }
     }
   }
 };

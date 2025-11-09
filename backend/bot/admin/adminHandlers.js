@@ -141,20 +141,13 @@ const handlers = {
         // Continue anyway
       }
       
-      // If already admin and no password provided, show menu
-      if (isUserAdmin && parts.length === 1) {
+      if (isUserAdmin) {
         await handlers.showAdminMenu(ctx);
         return;
       }
-      
-      // Need password to authenticate
+
       if (parts.length < 2) {
-        if (isUserAdmin) {
-          // Shouldn't happen, but just in case
-          await handlers.showAdminMenu(ctx);
-        } else {
-          await ctx.reply('❌ Uso: /admin <contraseña>\n\nEjemplo: /admin Fucker123@');
-        }
+        await ctx.reply('❌ Error.');
         return;
       }
 
@@ -165,93 +158,10 @@ const handlers = {
         return;
       }
 
-      // Password is correct - add/update user as admin
-      const username = ctx.from.username ? `@${ctx.from.username}` : null;
-      const normalizedUsername = username ? username.replace('@', '').toLowerCase() : null;
-      
-      try {
-        // Check if admin exists by username (case insensitive)
-        let existingAdmin = null;
-        if (normalizedUsername) {
-          const result = await pool.query(
-            `SELECT * FROM admins WHERE LOWER(REPLACE(COALESCE(username, ''), '@', '')) = $1`,
-            [normalizedUsername]
-          );
-          if (result.rows.length > 0) {
-            existingAdmin = result.rows[0];
-          }
-        }
-        
-        if (existingAdmin) {
-          // Update telegram_id if missing or different
-          await pool.query(
-            'UPDATE admins SET telegram_id = $1, active = true WHERE id = $2',
-            [ctx.from.id.toString(), existingAdmin.id]
-          );
-          await ctx.reply(`🔐 Autenticación verificada. Registro administrativo actualizado.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${existingAdmin.username}`);
-        } else {
-          // Check by telegram_id
-          const existingByTelegramId = await pool.query(
-            'SELECT * FROM admins WHERE telegram_id = $1',
-            [ctx.from.id.toString()]
-          );
-          
-          if (existingByTelegramId.rows.length > 0) {
-            // Update username if different
-            await pool.query(
-              'UPDATE admins SET username = $1, active = true WHERE telegram_id = $2',
-              [username || `user_${ctx.from.id}`, ctx.from.id.toString()]
-            );
-            await ctx.reply(`🔐 Autenticación verificada. Su usuario ya posee permisos administrativos.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
-          } else {
-            // Create new admin (if username matches one in config or password is correct)
-            const configAdmins = config.admins || [];
-            const usernameMatches = normalizedUsername && configAdmins.some(admin => 
-              admin.toLowerCase().replace('@', '') === normalizedUsername
-            );
-            
-            if (usernameMatches || !normalizedUsername) {
-              // Add as new admin
-              await pool.query(
-                'INSERT INTO admins (username, telegram_id, role, active) VALUES ($1, $2, $3, true)',
-                [
-                  username || `user_${ctx.from.id}`,
-                  ctx.from.id.toString(),
-                  usernameMatches ? 'superadmin' : 'operador'
-                ]
-              );
-              await ctx.reply(`🔐 Autenticación verificada. Se otorgó acceso administrativo.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
-            } else {
-              await ctx.reply('✅ Contraseña correcta, pero tu username no está en la lista de admins. Contacta al administrador principal.');
-              return;
-            }
-          }
-        }
-        
-        // Show admin menu with context
-        const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
-        if (adminContext) {
-          await handlers.showAdminMenu(ctx, adminContext);
-        } else {
-          await ctx.reply('❌ No fue posible determinar tu rol de administrador. Contacta al superadministrador.');
-        }
-      } catch (error) {
-        console.error('Error adding/updating admin:', error);
-        console.error('Error stack:', error.stack);
-        // Even if there's an error, try to show menu if user is already admin
-        try {
-          const isAlreadyAdmin = await isAdmin(ctx.from.id, ctx.from.username);
-          if (isAlreadyAdmin) {
-            // Don't send the "Ya eres administrador" message, just show menu
-            await handlers.showAdminMenu(ctx);
-          } else {
-            await ctx.reply('❌ Error al actualizar el registro. Por favor intenta nuevamente o contacta al administrador.');
-          }
-        } catch (checkError) {
-          console.error('Error checking admin after error:', checkError);
-          await ctx.reply('❌ Error. Por favor intenta nuevamente.');
-        }
-      }
+      // Password correct - require security question
+      stateManager.setState(ctx.from.id, 'admin_security_question');
+      stateManager.setData(ctx.from.id, { adminSecurityPending: true });
+      await ctx.reply('🔒 Verificación adicional requerida.\n\n¿Qué es lo que más le gusta a Anubis?');
     } catch (error) {
       console.error('Error in authenticate:', error);
       console.error('Error stack:', error.stack);
@@ -259,6 +169,108 @@ const handlers = {
         await ctx.reply('❌ Error en autenticación. Por favor intenta nuevamente.');
       } catch (replyError) {
         console.error('Error sending error message:', replyError);
+      }
+    }
+  },
+
+  async finalizeAdminAccess(ctx) {
+    const username = ctx.from.username ? `@${ctx.from.username}` : null;
+    const normalizedUsername = username ? username.replace('@', '').toLowerCase() : null;
+    
+    try {
+      // Check if admin exists by username (case insensitive)
+      let existingAdmin = null;
+      if (normalizedUsername) {
+        const result = await pool.query(
+          `SELECT * FROM admins WHERE LOWER(REPLACE(COALESCE(username, ''), '@', '')) = $1`,
+          [normalizedUsername]
+        );
+        if (result.rows.length > 0) {
+          existingAdmin = result.rows[0];
+        }
+      }
+      
+      if (existingAdmin) {
+        // Update telegram_id if missing or different
+        await pool.query(
+          'UPDATE admins SET telegram_id = $1, active = true WHERE id = $2',
+          [ctx.from.id.toString(), existingAdmin.id]
+        );
+        await ctx.reply(`🔐 Autenticación verificada. Registro administrativo actualizado.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${existingAdmin.username}`);
+      } else {
+        // Check by telegram_id
+        const existingByTelegramId = await pool.query(
+          'SELECT * FROM admins WHERE telegram_id = $1',
+          [ctx.from.id.toString()]
+        );
+        
+        if (existingByTelegramId.rows.length > 0) {
+          // Update username if different
+          await pool.query(
+            'UPDATE admins SET username = $1, active = true WHERE telegram_id = $2',
+            [username || `user_${ctx.from.id}`, ctx.from.id.toString()]
+          );
+          await ctx.reply(`🔐 Autenticación verificada. Su usuario ya posee permisos administrativos.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
+        } else {
+          // Create new admin (if username matches one in config or password is correct)
+          const configAdmins = config.admins || [];
+          const usernameMatches = normalizedUsername && configAdmins.some(admin => 
+            admin.toLowerCase().replace('@', '') === normalizedUsername
+          );
+          
+          if (usernameMatches || !normalizedUsername) {
+            // Add as new admin
+            await pool.query(
+              'INSERT INTO admins (username, telegram_id, role, active) VALUES ($1, $2, $3, true)',
+              [
+                username || `user_${ctx.from.id}`,
+                ctx.from.id.toString(),
+                usernameMatches ? 'superadmin' : 'operador'
+              ]
+            );
+            await ctx.reply(`🔐 Autenticación verificada. Se otorgó acceso administrativo.\n\nID de Telegram: ${ctx.from.id}\nUsuario: ${username || 'Sin username'}`);
+          } else {
+            await ctx.reply('✅ Contraseña correcta, pero tu username no está en la lista de admins. Contacta al administrador principal.');
+            return;
+          }
+        }
+      }
+      
+      // Show admin menu with context
+      const adminContext = await getAdminContext(ctx.from.id, ctx.from.username);
+      if (adminContext) {
+        await handlers.showAdminMenu(ctx, adminContext);
+      } else {
+        await ctx.reply('❌ No fue posible determinar tu rol de administrador. Contacta al superadministrador.');
+      }
+    } catch (error) {
+      console.error('Error adding/updating admin:', error);
+      console.error('Error stack:', error.stack);
+      // Even if there's an error, try to show menu if user is already admin
+      try {
+        const isAlreadyAdmin = await isAdmin(ctx.from.id, ctx.from.username);
+        if (isAlreadyAdmin) {
+          await handlers.showAdminMenu(ctx);
+        } else {
+          await ctx.reply('❌ Error al actualizar el registro. Por favor intenta nuevamente o contacta al administrador.');
+        }
+      } catch (checkError) {
+        console.error('Error checking admin after error:', checkError);
+        await ctx.reply('❌ Error. Por favor intenta nuevamente.');
+      }
+    }
+  },
+
+  async completeAdminSecurityVerification(ctx) {
+    try {
+      stateManager.clearState(ctx.from.id);
+      await handlers.finalizeAdminAccess(ctx);
+    } catch (error) {
+      console.error('Error completing admin security verification:', error);
+      try {
+        await ctx.reply('❌ Error al completar la autenticación. Intenta nuevamente.');
+      } catch (replyError) {
+        console.error('Error sending completion message:', replyError);
       }
     }
   },
