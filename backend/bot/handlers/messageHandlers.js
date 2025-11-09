@@ -13,6 +13,60 @@ const adminHandlers = require('../admin/adminHandlers');
 const config = require('../../config/default.json');
 const fs = require('fs');
 const path = require('path');
+const PDFDocument = require('pdfkit');
+
+const sanitizeForPDF = (value, fallback = 'N/A') => {
+  if (value === null || value === undefined) return fallback;
+  const cleaned = value
+    .toString()
+    .replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\.\,\-\/\$#:]/g, '')
+    .trim();
+  return cleaned || fallback;
+};
+
+function createReceiptPDFBuffer({ transactionId, headerName, serviceName, codeLabel, codeValue, amountFormatted }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 50 });
+      const buffers = [];
+      doc.on('data', (chunk) => buffers.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+
+      const cleanServiceName = sanitizeForPDF(serviceName, 'N/A');
+      const cleanHeader = sanitizeForPDF(headerName || cleanServiceName, cleanServiceName).toUpperCase();
+      const cleanCodeLabel = sanitizeForPDF(codeLabel, 'Dato');
+      const cleanCodeValue = sanitizeForPDF(codeValue, 'N/A');
+      const cleanAmount = sanitizeForPDF(amountFormatted, 'N/A');
+
+      doc.fontSize(14).text(`Transacción #: ${transactionId}`, { align: 'left' });
+      doc.moveDown();
+      doc.fontSize(18).text('╔══════════════════════════╗', { align: 'center' });
+      doc.fontSize(16).text(`PAGO - ${cleanHeader}`, { align: 'center' });
+      doc.fontSize(18).text('╚══════════════════════════╝', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(14).text(`Servicio: ${cleanServiceName}`);
+      doc.text(`${cleanCodeLabel}: ${cleanCodeValue}`);
+      doc.text(`Monto ARS: ${cleanAmount}`);
+      doc.moveDown();
+      doc.fontSize(14).text('COMPROBANTE DE PAGO.', { align: 'center' });
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function sendPaymentReceiptPDF(ctx, details) {
+  try {
+    const pdfBuffer = await createReceiptPDFBuffer(details);
+    const filename = `comprobante-${details.transactionId}.pdf`;
+    return await ctx.replyWithDocument({ source: pdfBuffer, filename });
+  } catch (error) {
+    console.error('Error sending payment receipt PDF:', error);
+    return null;
+  }
+}
 
 const handlers = {
   async handleText(ctx) {
@@ -1266,6 +1320,19 @@ const handlers = {
           'UPDATE transactions SET proof_image = $1 WHERE id = $2',
           [userMessageInfo, transaction.id]
         );
+
+        const receiptMsg = await sendPaymentReceiptPDF(ctx, {
+          transactionId: transaction.id,
+          headerName: servicioText || 'MACRO/PLUS',
+          serviceName: servicioText !== 'N/A' ? servicioText : 'Macro / PlusPagos',
+          codeLabel: 'Número / DNI',
+          codeValue: dniText || 'N/A',
+          amountFormatted: montoFormateado
+        });
+        if (receiptMsg) {
+          chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
+        }
+
         await ctx.answerCbQuery('✅ Pago confirmado');
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
@@ -1381,10 +1448,20 @@ const handlers = {
         // Format message for admin group
         const montoFormateadoAdmin = formatARS(monto);
         let adminMessage;
+        let receiptDetails = null;
         const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
         
         if (type === 'otra') {
           const montoTotalUSDTOtra = await priceService.convertARSToUSDT(monto);
+          const serviceName = data.nombre_servicio || 'Otro Servicio';
+          receiptDetails = {
+            transactionId: transaction.id,
+            headerName: serviceName,
+            serviceName,
+            codeLabel: 'Código / Número',
+            codeValue: data.codigo || 'N/A'
+          };
+
           adminMessage = [
             '╔══════════════════════════╗',
             '  SOLICITUD DE PAGO - OTRO SERVICIO',
@@ -1421,6 +1498,14 @@ const handlers = {
 
           const rentaTipoText = rentaTipo.replace('_', ' ');
           const montoTotalUSDTRentas = await priceService.convertARSToUSDT(monto);
+          const plainLabel = datoLabel.replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\/\-\.\#]/g, '').trim() || 'Dato';
+          receiptDetails = {
+            transactionId: transaction.id,
+            headerName: rentaTipoText,
+            serviceName: data.nombre_servicio || `Rentas Córdoba - ${rentaTipoText}`,
+            codeLabel: plainLabel,
+            codeValue: datoValor || 'N/A'
+          };
 
           adminMessage = [
             '╔══════════════════════════╗',
@@ -1489,6 +1574,15 @@ const handlers = {
           'UPDATE transactions SET proof_image = $1 WHERE id = $2',
           [userMessageInfo, transaction.id]
         );
+
+        if (receiptDetails) {
+          receiptDetails.amountFormatted = montoFormateado;
+          const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
+          if (receiptMsg) {
+            chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
+          }
+        }
+
         await ctx.answerCbQuery('✅ Orden confirmada');
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
@@ -1608,6 +1702,7 @@ const handlers = {
         const multaTipo = data.multa_tipo || 'PBA';
         
         let adminMessage;
+        let receiptDetails = null;
         
         // Si es PBA, usar formato antiguo
         const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
@@ -1616,6 +1711,14 @@ const handlers = {
           const sexoText = data.sexo || 'N/A';
           const tramiteText = data.tramite || 'N/A';
           const patenteText = data.patente || 'N/A';
+
+          receiptDetails = {
+            transactionId: transaction.id,
+            headerName: 'MULTAS PBA',
+            serviceName: 'Multas PBA',
+            codeLabel: 'N° de trámite',
+            codeValue: tramiteText || patenteText || data.dni || 'N/A'
+          };
 
           adminMessage = [
             '╔══════════════════════════╗',
@@ -1662,6 +1765,15 @@ const handlers = {
           
           // Calcular monto total en USDT para mostrar al admin
           const montoTotalUSDTAdmin = await priceService.convertARSToUSDT(monto);
+          const plainLabel = datoLabel.replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\/\-\.\#]/g, '').trim() || 'Dato';
+          const serviceName = `Multas ${multaTipo.replace('_', ' ')}`;
+          receiptDetails = {
+            transactionId: transaction.id,
+            headerName: serviceName,
+            serviceName,
+            codeLabel: plainLabel,
+            codeValue: datoPago || 'N/A'
+          };
           adminMessage = [
             '╔══════════════════════════╗',
             '  NUEVA ORDEN DE PAGO - MULTAS',
@@ -1735,6 +1847,14 @@ const handlers = {
           'UPDATE transactions SET proof_image = $1 WHERE id = $2',
           [finalProofImage, transaction.id]
         );
+
+        if (receiptDetails) {
+          receiptDetails.amountFormatted = montoFormateado;
+          const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
+          if (receiptMsg) {
+            chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
+          }
+        }
         
         stateManager.clearState(ctx.from.id);
         await ctx.answerCbQuery('✅ Orden confirmada');
