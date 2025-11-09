@@ -9,52 +9,76 @@ const normalize = (text = '') =>
 
 const knowledgeBase = [
   {
-    intent: 'pago_20_por_ciento',
-    keywords: ['cobra', '20', 'porcentaje', 'fee', 'comision', 'cobran'],
+    intent: 'pagar_detalle',
+    keywords: ['pagar', 'flujo', 'categorias', 'menu pagar'],
     answer:
-      'Los pagos se realizan en ARS y el bot descuenta automáticamente el *20%* del valor convertido a USDT. Este monto cubre el servicio y siempre se redondea al entero superior.'
+      'El comando `/pagar` abre cuatro categorías: Multas PBA, Macro/PlusPagos, Rentas Córdoba y Otros Servicios. Cada opción pide los datos necesarios (identificador, monto, referencia) y genera la orden descontando el 20% correspondiente.'
   },
   {
-    intent: 'como_cargar_saldo',
+    intent: 'cargar_detalle',
     keywords: ['cargar', 'saldo', 'recarga', 'deposito'],
     answer:
-      'Para cargar saldo utilizá `/cargar`. El bot te pedirá el monto en USDT y luego deberás enviar el comprobante. Un administrador validará la carga y recibirás la confirmación por el bot.'
+      'Con `/cargar` ingresás el monto en USDT y enviás el comprobante. Los administradores verifican la transferencia; al aprobarla recibís la notificación y el saldo queda disponible en tu cuenta.'
   },
   {
-    intent: 'estado_pago',
-    keywords: ['estado', 'pago', 'tarda', 'cuanto demora', 'demora', 'cuando confirman'],
+    intent: 'saldo_detalle',
+    keywords: ['saldo disponible', 'consultar saldo'],
     answer:
-      'Las órdenes pasan por revisión manual. Cuando el administrador confirma el pago recibirás una notificación con todos los datos y el botón para volver al menú.'
+      'El comando `/saldo` muestra tu saldo actual en USDT y deja el botón para regresar al menú principal.'
   },
   {
-    intent: 'contacto_admin',
-    keywords: ['contactar', 'admin', 'ayuda', 'soporte'],
+    intent: 'movimientos_detalle',
+    keywords: ['movimientos', 'historial', 'transacciones'],
     answer:
-      'Si necesitás ayuda personalizada escribí a los administradores por el canal habitual o respondé al mensaje del grupo de órdenes. También podés dejar tu consulta aquí y será derivada.'
+      '`/movimientos` lista hasta 50 operaciones recientes con su estado y cronología. Si necesitás ver solo las pagadas confirmadas, `/historial` resume las últimas acreditadas.'
   },
   {
-    intent: 'comandos_principales',
-    keywords: ['comandos', 'menu', 'opciones', 'funciones'],
+    intent: 'notificaciones_detalle',
+    keywords: ['notificaciones', 'avisos', 'alertas'],
     answer:
-      'Comandos principales: `/pagar`, `/cargar`, `/saldo`, `/movimientos`, `/notificaciones`, `/preguntas`, `/me`. Copiá la pregunta sugerida o indicá el número que corresponde y recibirás la respuesta. Podés volver al menú usando el botón *MENU PRINCIPAL*.'
-  },
-  {
-    intent: 'rentas_info',
-    keywords: ['rentas', 'cordoba', 'impuesto', 'ingresos', 'automotor', 'inmobiliario'],
-    answer:
-      'En `/pagar` → Rentas Córdoba podés elegir Automotor, Inmobiliario, Ingresos Brutos, Sellos o Multas Caminera. El bot te pedirá los datos específicos y luego confirmará con el 20% correspondiente.'
+      'En `/notificaciones` podés activar avisos inmediatos, recibir un resumen diario o desactivar las alertas automáticas. Podés cambiar esta configuración cuando quieras.'
   },
   {
     intent: 'preguntas_info',
     keywords: ['preguntas', 'ia', 'centro', 'faq', 'consultas'],
     answer:
-      'El comando `/preguntas` abre el centro de asistencia con IA. Copiá una de las preguntas sugeridas o escribí el número correspondiente y recibirás la respuesta basada en los datos del bot. Para salir, escribí `MENU` o usá el botón *MENU PRINCIPAL*.'
+      'El comando `/preguntas` abre la asistencia inteligente. Copiá una de las preguntas sugeridas o escribí el número correspondiente para recibir la respuesta. Para salir, escribí `MENU` o usá el botón *MENU PRINCIPAL*.'
+  },
+  {
+    intent: 'me_detalle',
+    keywords: ['/me', 'datos usuario', 'id'],
+    answer:
+      'Con `/me` obtenés tu ID de Telegram, tu usuario y tu nombre registrado. Es útil cuando necesitás soporte o verificar tus datos en el sistema.'
+  },
+  {
+    intent: 'rentas_detalle',
+    keywords: ['rentas', 'cordoba', 'automotor', 'inmobiliario', 'ingresos brutos'],
+    answer:
+      'En `/pagar` → Rentas Córdoba tenés Automotor, Inmobiliario, Ingresos Brutos, Sellos y Multas de Caminera. Cada opción solicita los datos específicos antes de calcular el monto a pagar más el 20%.'
+  },
+  {
+    intent: 'comision_detalle',
+    keywords: ['comision', '20%', 'fee', 'redondeo'],
+    answer:
+      'La comisión es del 20% sobre el monto en USDT. El bot calcula el valor, lo redondea siempre hacia arriba al entero más cercano y lo descuenta automáticamente de tu saldo cuando confirmás el pago.'
+  },
+  {
+    intent: 'comprobante_detalle',
+    keywords: ['comprobante', 'validacion', 'acreditacion'],
+    answer:
+      'Cuando enviás el comprobante de una carga, el bot lo comparte con los administradores. Ellos validan la transferencia; al aprobarla recibís la notificación de saldo acreditado y el mensaje “Depósito confirmado con éxito”.'
+  },
+  {
+    intent: 'contacto_admin',
+    keywords: ['contactar', 'admin', 'soporte', 'ayuda'],
+    answer:
+      'Para hablar con un administrador respondé en el grupo interno de órdenes, usá los canales oficiales del servicio o dejá tu consulta en `/preguntas` para que sea derivada al equipo.'
   },
   {
     intent: 'menu_principal',
     keywords: ['menu principal', 'volver', 'regresar', 'menu'],
     answer:
-      'Para regresar al menú principal podés usar el botón *MENU PRINCIPAL* del teclado o escribir simplemente `MENU`.'
+      'Para regresar al menú principal escribí `MENU` o tocá el botón *MENU PRINCIPAL* del teclado del bot.'
   }
 ];
 

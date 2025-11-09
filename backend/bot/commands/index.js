@@ -1160,17 +1160,17 @@ const commands = {
       stateManager.setState(ctx.from.id, 'preguntas_waiting_question');
 
       const availableQuestions = [
-        '`1. ¿Cómo funciona /pagar?`',
-        '`2. ¿Cómo cargo saldo con /cargar?`',
-        '`3. ¿Cómo consulto mi saldo con /saldo?`',
-        '`4. ¿Dónde veo mis movimientos con /movimientos?`',
-        '`5. ¿Para qué sirve /notificaciones?`',
-        '`6. ¿Qué información entrega /preguntas?`',
-        '`7. ¿Qué datos muestra /me?`',
-        '`8. ¿Qué opciones hay en Rentas Córdoba?`',
-        '`9. ¿Cuál es la comisión del 20%?`',
-        '`10. ¿Qué pasa después de enviar un comprobante?`',
-        '`11. ¿Cómo contacto a un administrador?`'
+        '1. `¿Cómo funciona /pagar?` — Inicia el asistente de pagos con todas las categorías disponibles.',
+        '2. `¿Cómo cargo saldo con /cargar?` — Solicita el monto en USDT y el comprobante para acreditarlo.',
+        '3. `¿Cómo consulto mi saldo con /saldo?` — Te muestra el saldo que tenés disponible.',
+        '4. `¿Dónde veo mis movimientos con /movimientos?` — Lista pagos, cargas, reembolsos y su estado.',
+        '5. `¿Para qué sirve /notificaciones?` — Configura alertas inmediatas o resumen diario.',
+        '6. `¿Qué información entrega /preguntas?` — Explica cómo usar la asistencia inteligente.',
+        '7. `¿Qué datos muestra /me?` — Devuelve tu ID de Telegram, usuario y nombre registrado.',
+        '8. `¿Qué opciones hay en Rentas Córdoba?` — Detalla Automotor, Inmobiliario, Ingresos Brutos, etc.',
+        '9. `¿Cuál es la comisión del 20%?` — Describe el cálculo y el redondeo aplicado a cada pago.',
+        '10. `¿Qué pasa después de enviar un comprobante?` — Explica la revisión y acreditación manual.',
+        '11. `¿Cómo contacto a un administrador?` — Indica los canales oficiales de soporte.'
       ].join('\n');
 
       const message = [
