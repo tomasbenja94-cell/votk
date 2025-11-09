@@ -1159,11 +1159,31 @@ const commands = {
 
       stateManager.setState(ctx.from.id, 'preguntas_waiting_question');
 
-      const message = `❓ *Centro de Preguntas*\n\n` +
-        `Estoy listo para ayudarte con información del servicio.\n\n` +
-        `✍️ *Escribe tu pregunta en un mensaje.*\n` +
-        `✅ La IA responderá automáticamente con los datos del bot.\n\n` +
-        `📌 Para volver al menú principal usa el botón o escribe *MENU*.`;
+      const availableQuestions = [
+        '`¿Cómo funciona /pagar?`',
+        '`¿Qué incluye el menú PAGAR MULTAS PBA?`',
+        '`¿Cómo cargo saldo con /cargar?`',
+        '`¿Cómo consulto mi saldo con /saldo?`',
+        '`¿Dónde veo mis movimientos con /movimientos?`',
+        '`¿Para qué sirve /notificaciones?`',
+        '`¿Qué información entrega /preguntas?`',
+        '`¿Qué datos muestra /me?`',
+        '`¿Qué opciones hay en Rentas Córdoba?`',
+        '`¿Cuál es la comisión del 20%?`',
+        '`¿Qué pasa después de enviar un comprobante?`',
+        '`¿Cómo contacto a un administrador?`'
+      ].join('\n');
+
+      const message = [
+        '❓ *Centro de Preguntas*',
+        '',
+        '✍️ *Escribe tu pregunta en un mensaje.*',
+        '',
+        'Preguntas sugeridas:',
+        availableQuestions,
+        '',
+        '📌 Para volver al menú principal usa el botón o escribe *MENU*.'
+      ].join('\n');
 
       const keyboard = {
         reply_markup: {
