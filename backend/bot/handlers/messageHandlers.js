@@ -1,5 +1,5 @@
 const pool = require('../../db/connection');
-const { getOrCreateUser, generateIdentifier, encodeIdentifier, decodeIdentifier, formatCurrency, formatARS, getAdminContext } = require('../../utils/helpers');
+const { getOrCreateUser, generateIdentifier, encodeIdentifier, decodeIdentifier, formatCurrency, formatARS, formatPercentage, getAdminContext } = require('../../utils/helpers');
 const priceService = require('../../services/priceService');
 const stateManager = require('./stateManager');
 const messageService = require('../../services/messageService');
@@ -69,49 +69,42 @@ async function sendPaymentReceiptPDF(ctx, details) {
   }
 }
 
-function formatPercentText(value) {
-  if (value === null || value === undefined) {
-    return '20';
-  }
-  const num = parseFloat(value);
-  if (Number.isNaN(num)) {
-    return '20';
-  }
-  return Number.isInteger(num) ? num.toFixed(0) : num.toFixed(2).replace(/\.00$/, '');
-}
+const DEFAULT_FEE_PERCENTAGE = 20;
 
-function computeUserFee(userRow, amountArs, amountTotalUsdt) {
-  const basePercent = 20;
-  let percentValue = basePercent;
-  let appliedCustom = false;
-  const customPercent = userRow?.custom_fee_percentage !== undefined && userRow?.custom_fee_percentage !== null
-    ? parseFloat(userRow.custom_fee_percentage)
-    : null;
-  const customMin = userRow?.custom_fee_min_amount_ars !== undefined && userRow?.custom_fee_min_amount_ars !== null
-    ? parseFloat(userRow.custom_fee_min_amount_ars)
-    : null;
-
-  if (!Number.isNaN(customPercent) && customPercent > 0) {
-    const meetsMin = Number.isNaN(customMin) || customMin <= 0 || amountArs >= customMin;
-    if (meetsMin) {
-      percentValue = customPercent;
-      appliedCustom = true;
-    }
-  }
-
-  let feeAmountUsdt = amountTotalUsdt * (percentValue / 100);
-  feeAmountUsdt = Math.round(feeAmountUsdt);
-  if (feeAmountUsdt < 1) {
-    feeAmountUsdt = 1;
-  }
+const resolveUserFeeSettings = (user = {}) => {
+  const percentRaw = user && user.fee_percentage !== undefined && user.fee_percentage !== null
+    ? parseFloat(user.fee_percentage)
+    : DEFAULT_FEE_PERCENTAGE;
+  const minRaw = user && user.fee_min_amount_ars !== undefined && user.fee_min_amount_ars !== null
+    ? parseFloat(user.fee_min_amount_ars)
+    : 0;
 
   return {
-    amountUsdt: feeAmountUsdt,
-    percentValue,
-    percentText: formatPercentText(percentValue),
-    appliedCustom
+    percent: Number.isFinite(percentRaw) ? percentRaw : DEFAULT_FEE_PERCENTAGE,
+    minArs: Number.isFinite(minRaw) ? minRaw : 0
   };
-}
+};
+
+const calculateFeeForUser = async ({ user, amountArs, precomputedUSDT = null }) => {
+  const amountArsNumber = parseFloat(amountArs) || 0;
+  const { percent, minArs } = resolveUserFeeSettings(user);
+  const totalUsdt = precomputedUSDT !== null ? precomputedUSDT : await priceService.convertARSToUSDT(amountArsNumber);
+
+  const thresholdMet = !(minArs > 0 && amountArsNumber < minArs);
+  const percentApplied = thresholdMet ? percent : DEFAULT_FEE_PERCENTAGE;
+
+  let feeUsdt = totalUsdt * (percentApplied / 100);
+  feeUsdt = Math.max(0, Math.round(feeUsdt));
+
+  return {
+    feeUsdt,
+    percentApplied,
+    percentageLabel: formatPercentage(percentApplied),
+    minArs,
+    totalUsdt,
+    thresholdMet
+  };
+};
 
 const handlers = {
   async handleText(ctx) {
@@ -181,6 +174,12 @@ const handlers = {
         break;
       case 'pagar_otra_multa_waiting_codigo':
         await this.handlePagarOtraMultaCodigo(ctx, text);
+        break;
+      case 'admin_set_percentage_waiting_percent':
+        await adminHandlers.handlePorcentajePercentStep(ctx, text);
+        break;
+      case 'admin_set_percentage_waiting_min':
+        await adminHandlers.handlePorcentajeMinStep(ctx, text);
         break;
       case 'admin_waiting_actas':
         // This is handled in admin handlers
@@ -916,10 +915,15 @@ const handlers = {
       const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
       const data = stateManager.getData(ctx.from.id);
       
+      // Convert ARS to USDT and calculate porcentaje personalizado
       const montoTotalUSDT = await priceService.convertARSToUSDT(monto);
-      const feeInfo = computeUserFee(user, monto, montoTotalUSDT);
-      const amountUSDT = feeInfo.amountUsdt;
-      const feePercentText = feeInfo.percentText;
+      const feeData = await calculateFeeForUser({
+        user,
+        amountArs: monto,
+        precomputedUSDT: montoTotalUSDT
+      });
+      const amountUSDT = feeData.feeUsdt;
+      const percentageLabel = feeData.percentageLabel;
       
       // Ensure saldo_usdt is a number
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
@@ -932,6 +936,16 @@ const handlers = {
         stateManager.clearState(ctx.from.id);
         return;
       }
+
+      stateManager.setData(ctx.from.id, {
+        ...data,
+        monto,
+        feePercent: feeData.percentApplied,
+        feePercentLabel: percentageLabel,
+        feeMinAmountArs: feeData.minArs,
+        montoTotalUSDT,
+        feeUsdt: amountUSDT
+      });
 
       // Show validation animation
       const loadingMsg = await ctx.reply('[+] Validando pasarela...', { parse_mode: 'Markdown' });
@@ -960,7 +974,7 @@ const handlers = {
         `📄 Número/DNI: ${data.dni || 'N/A'}\n` +
         `💰 Monto: $${monto} ARS\n` +
         `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
-        `💵 Total a cobrar (${feePercentText}%): ${amountUSDT} USDT\n\n` +
+        `💵 Total a cobrar (${percentageLabel}): ${amountUSDT} USDT\n\n` +
         `¿Deseás continuar?`;
 
       const keyboard = {
@@ -978,14 +992,6 @@ const handlers = {
       await chatManager.cleanChat(ctx, ctx.from.id, 1);
       const summarySent = await ctx.replyWithMarkdown(summaryMessage, keyboard);
       chatManager.registerBotMessage(ctx.from.id, summarySent.message_id);
-
-      stateManager.setData(ctx.from.id, {
-        ...data,
-        monto,
-        finalAmountUSDT: amountUSDT,
-        feePercentValue: feeInfo.percentValue,
-        feePercentText
-      });
     } catch (error) {
       console.error('Error in handlePagarMacroMonto:', error);
       const errorMsg = await messageService.getMessage('pagar_error');
@@ -1028,14 +1034,17 @@ const handlers = {
       console.log(`[DEBUG handlePagarMonto] Monto ARS: ${monto}, Type: ${type}, Data:`, JSON.stringify(data));
       console.log(`[DEBUG handlePagarMonto] Current state: ${stateManager.getState(ctx.from.id)}`);
       
-      // Calculate final USDT amount - ALL types charge 20%
-      // Convert to USDT first, then calculate 20%
+      // Calculate final USDT amount with porcentaje personalizado
       const montoTotalUSDT = await priceService.convertARSToUSDT(monto);
       console.log(`[DEBUG handlePagarMonto] Monto Total USDT: ${montoTotalUSDT}`);
-      let finalAmountUSDT = montoTotalUSDT * 0.20;
-      console.log(`[DEBUG handlePagarMonto] 20% antes de redondear: ${finalAmountUSDT}`);
-      // Round to 1 decimal place (redondeo automático de 1 USDT)
-      finalAmountUSDT = Math.round(finalAmountUSDT);
+      const feeData = await calculateFeeForUser({
+        user,
+        amountArs: monto,
+        precomputedUSDT: montoTotalUSDT
+      });
+      let finalAmountUSDT = feeData.feeUsdt;
+      const percentageLabel = feeData.percentageLabel;
+      console.log(`[DEBUG handlePagarMonto] Porcentaje aplicado: ${feeData.percentApplied}`);
       console.log(`[DEBUG handlePagarMonto] Final Amount USDT (redondeado): ${finalAmountUSDT}`);
       
       // Ensure saldo_usdt is a number
@@ -1051,19 +1060,25 @@ const handlers = {
         return;
       }
 
+      stateManager.setData(ctx.from.id, {
+        ...data,
+        monto,
+        finalAmountUSDT,
+        feePercent: feeData.percentApplied,
+        feePercentLabel: percentageLabel,
+        feeMinAmountArs: feeData.minArs,
+        montoTotalUSDT
+      });
+
       // For multas, show summary and ask for confirmation BEFORE creating transaction
       if (type === 'multas') {
         const montoFormateado = formatARS(monto);
         const multaTipo = data.multa_tipo || 'PBA';
-        
-        // Save monto and finalAmountUSDT to state for later confirmation
-        stateManager.setData(ctx.from.id, { ...data, monto, finalAmountUSDT });
-        
+        const montoTotalUSDTGeneral = data?.montoTotalUSDT || await priceService.convertARSToUSDT(monto);
+
         // Show summary with confirmation buttons - formato diferente según tipo
         let summaryMessage;
         if (multaTipo === 'PBA') {
-          // Calcular monto total en USDT para mostrar
-          const montoTotalUSDT = await priceService.convertARSToUSDT(monto);
           summaryMessage = `*Dueño de la multa:*\n\n` +
             `🆔 *DNI:* ${data.dni || 'N/A'}\n` +
             `⚧️ *Sexo:* ${data.sexo || 'N/A'}\n` +
@@ -1071,7 +1086,7 @@ const handlers = {
             `🚗 *Patente:* ${data.patente || 'N/A'}\n\n` +
             `💰 *Monto Multa ARS:* ${montoFormateado}\n` +
             `💵 *Monto Total (USDT):* ${montoTotalUSDT.toFixed(2)}\n` +
-            `💵 *Total a cobrar (20%):* ${finalAmountUSDT} USDT\n\n` +
+            `💵 *Total a cobrar (${percentageLabel}):* ${finalAmountUSDT} USDT\n\n` +
             `¿Deseas confirmar la orden?`;
         } else {
           // Para multas no PBA, mostrar formato simplificado
@@ -1094,13 +1109,11 @@ const handlers = {
             }
           }
           
-          // Calcular monto total en USDT para mostrar
-          const montoTotalUSDT = await priceService.convertARSToUSDT(monto);
           summaryMessage = `*Dato de pago:*\n\n` +
             `${datoLabel}: ${datoPago}\n\n` +
             `💰 *Monto Multa ARS:* ${montoFormateado}\n` +
             `💵 *Monto Total (USDT):* ${montoTotalUSDT.toFixed(2)}\n` +
-            `💵 *Total a cobrar (20%):* ${finalAmountUSDT} USDT\n\n` +
+            `💵 *Total a cobrar (${percentageLabel}):* ${finalAmountUSDT} USDT\n\n` +
             `¿Deseas confirmar la orden?`;
         }
 
@@ -1121,22 +1134,19 @@ const handlers = {
       }
 
       // For non-multas types (otra, rentas), show confirmation BEFORE creating transaction
-      // Save monto and finalAmountUSDT to state for later confirmation
-      stateManager.setData(ctx.from.id, { ...data, monto, finalAmountUSDT });
       
       // Build summary message based on type
       let summaryMessage;
       const montoFormateado = formatARS(monto);
       
       if (type === 'otra') {
-        // For "PAGAR OTRO SERVICIO" - mostrar monto total y el 20% que se cobra
-        const montoTotalUSDT = await priceService.convertARSToUSDT(monto);
+        // For "PAGAR OTRO SERVICIO" - mostrar monto total y el porcentaje aplicado
         summaryMessage = `💳 *Confirmá el pago:*\n\n` +
           `📋 Servicio: ${data.nombre_servicio || 'N/A'}\n` +
           `📄 Código/Número: ${data.codigo || 'N/A'}\n` +
           `💰 Monto: ${montoFormateado} ARS\n` +
           `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
-          `💵 Total a cobrar (20%): ${finalAmountUSDT} USDT\n\n` +
+          `💵 Total a cobrar (${percentageLabel}): ${finalAmountUSDT} USDT\n\n` +
           `¿Deseás confirmar la orden?`;
       } else if (type === 'rentas') {
         // For rentas
@@ -1158,20 +1168,19 @@ const handlers = {
           datoValor = data.patente || 'N/A';
         }
         
-        // Calcular monto total en USDT para mostrar
-        const montoTotalUSDTRentas = await priceService.convertARSToUSDT(monto);
         summaryMessage = `💳 *Confirmá el pago (Rentas Córdoba):*\n\n` +
           `📋 Tipo: ${rentaTipo.replace('_', ' ')}\n` +
           `📄 ${datoLabel}: ${datoValor}\n` +
           `💰 Monto: ${montoFormateado} ARS\n` +
-          `💵 Monto Total (USDT): ${montoTotalUSDTRentas.toFixed(2)}\n` +
-          `💵 Total a cobrar (20%): ${finalAmountUSDT} USDT\n\n` +
+          `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
+          `💵 Total a cobrar (${percentageLabel}): ${finalAmountUSDT} USDT\n\n` +
           `¿Deseás confirmar la orden?`;
       } else {
         // Fallback for any other type
         summaryMessage = `💳 *Confirmá el pago:*\n\n` +
           `💰 Monto: ${montoFormateado} ARS\n` +
-          `💵 Total a cobrar (USDT): ${finalAmountUSDT.toFixed(2)} USDT\n\n` +
+          `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
+          `💵 Total a cobrar (${percentageLabel}): ${finalAmountUSDT.toFixed(2)} USDT\n\n` +
           `¿Deseás confirmar la orden?`;
       }
       
@@ -1212,6 +1221,10 @@ const handlers = {
       const monto = parseFloat(parts[2]);
       const amountUSDT = parseFloat(parts[3]);
       const data = stateManager.getData(ctx.from.id);
+      const feePercent = data?.feePercent !== undefined ? data.feePercent : DEFAULT_FEE_PERCENTAGE;
+      const percentageLabel = data?.feePercentLabel || formatPercentage(feePercent);
+      const feePercent = data?.feePercent !== undefined ? data.feePercent : DEFAULT_FEE_PERCENTAGE;
+      const percentageLabel = data?.feePercentLabel || formatPercentage(feePercent);
 
       const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
@@ -1301,7 +1314,7 @@ const handlers = {
         );
 
         // Format message for admin group (sin nombre del titular)
-        const montoTotalUSDTMacro = await priceService.convertARSToUSDT(monto);
+        const montoTotalUSDTMacro = data?.montoTotalUSDT || await priceService.convertARSToUSDT(monto);
         const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
         const servicioText = data.nombre_servicio || 'N/A';
         const dniText = data.dni || 'N/A';
@@ -1316,7 +1329,7 @@ const handlers = {
           `Número / DNI: ${dniText}`,
           `Monto ARS: ${montoArsTexto}`,
           `Monto total USDT: ${montoTotalUSDTMacro.toFixed(2)}`,
-          `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+          `Cobrado (${percentageLabel}): ${amountUSDT.toFixed(2)} USDT`,
           `Transacción #: ${transaction.id}`,
           'Estado: PROCESANDO',
           '──────────────',
@@ -1354,7 +1367,7 @@ const handlers = {
           `Su pago fue recibido correctamente.\n` +
           `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
-          `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
+          `COBRADO: ${amountUSDT.toFixed(0)} USDT (${percentageLabel})`;
 
         const keyboard = {
           reply_markup: {
@@ -1442,6 +1455,8 @@ const handlers = {
       const monto = parseFloat(parts[3]);
       const amountUSDT = parseFloat(parts[4]);
       const data = stateManager.getData(ctx.from.id);
+      const feePercent = data?.feePercent !== undefined ? data.feePercent : DEFAULT_FEE_PERCENTAGE;
+      const percentageLabel = data?.feePercentLabel || formatPercentage(feePercent);
 
       const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
       
@@ -1503,12 +1518,12 @@ const handlers = {
 
         // Format message for admin group
         const montoFormateadoAdmin = formatARS(monto);
+        const montoTotalUSDTGeneral = data?.montoTotalUSDT || await priceService.convertARSToUSDT(monto);
         let adminMessage;
         let receiptDetails = null;
         const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
         
         if (type === 'otra') {
-          const montoTotalUSDTOtra = await priceService.convertARSToUSDT(monto);
           const serviceName = data.nombre_servicio || 'Otro Servicio';
           receiptDetails = {
             transactionId: transaction.id,
@@ -1526,8 +1541,8 @@ const handlers = {
             `Servicio: ${data.nombre_servicio || 'N/A'}`,
             `Código / Número: ${data.codigo || 'N/A'}`,
             `Monto ARS: ${montoFormateadoAdmin}`,
-            `Monto total USDT: ${montoTotalUSDTOtra.toFixed(2)}`,
-            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            `Monto total USDT: ${montoTotalUSDTGeneral.toFixed(2)}`,
+            `Cobrado (${percentageLabel}): ${amountUSDT.toFixed(2)} USDT`,
             `Transacción #: ${transaction.id}`,
             'Estado: PROCESANDO',
             '──────────────',
@@ -1553,7 +1568,6 @@ const handlers = {
           }
 
           const rentaTipoText = rentaTipo.replace('_', ' ');
-          const montoTotalUSDTRentas = await priceService.convertARSToUSDT(monto);
           const plainLabel = datoLabel.replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\/\-\.\#]/g, '').trim() || 'Dato';
           receiptDetails = {
             transactionId: transaction.id,
@@ -1571,8 +1585,8 @@ const handlers = {
             `Tipo: ${rentaTipoText}`,
             `${datoLabel}: ${datoValor}`,
             `Monto ARS: ${montoFormateadoAdmin}`,
-            `Monto total USDT: ${montoTotalUSDTRentas.toFixed(2)}`,
-            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            `Monto total USDT: ${montoTotalUSDTGeneral.toFixed(2)}`,
+            `Cobrado (${percentageLabel}): ${amountUSDT.toFixed(2)} USDT`,
             `Transacción #: ${transaction.id}`,
             'Estado: PROCESANDO',
             '──────────────',
@@ -1610,7 +1624,7 @@ const handlers = {
           `Su pago fue recibido correctamente.\n` +
           `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
-          `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
+          `COBRADO: ${amountUSDT.toFixed(0)} USDT (${percentageLabel})`;
         
         const finalKeyboard = {
           reply_markup: {
@@ -1788,7 +1802,7 @@ const handlers = {
             `• Nº Trámite: ${tramiteText}`,
             `• Patente: ${patenteText}`,
             `Monto ARS: ${montoFormateado}`,
-            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            `Cobrado (${percentageLabel}): ${amountUSDT.toFixed(2)} USDT`,
             'Estado: EN PROCESO',
             '──────────────',
             'Utilice los botones para admitir o cancelar.'
@@ -1819,8 +1833,6 @@ const handlers = {
             }
           }
           
-          // Calcular monto total en USDT para mostrar al admin
-          const montoTotalUSDTAdmin = await priceService.convertARSToUSDT(monto);
           const plainLabel = datoLabel.replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\/\-\.\#]/g, '').trim() || 'Dato';
           const serviceName = `Multas ${multaTipo.replace('_', ' ')}`;
           receiptDetails = {
@@ -1839,8 +1851,8 @@ const handlers = {
             'Dato de pago:',
             `${datoLabel}: ${datoPago}`,
             `Monto ARS: ${montoFormateado}`,
-            `Monto total USDT: ${montoTotalUSDTAdmin.toFixed(2)}`,
-            `Cobrado (20%): ${amountUSDT.toFixed(2)} USDT`,
+            `Monto total USDT: ${montoTotalUSDTGeneral.toFixed(2)}`,
+            `Cobrado (${percentageLabel}): ${amountUSDT.toFixed(2)} USDT`,
             'Estado: EN PROCESO',
             '──────────────',
             'Utilice los botones para admitir o cancelar.'
@@ -1885,7 +1897,7 @@ const handlers = {
           `Su pago fue recibido correctamente.\n` +
           `Le notificaremos cuando finalice la gestión.\n\n` +
           `MONTO PAGADO: ${montoFormateado}\n` +
-          `COBRADO: ${amountUSDT.toFixed(0)} USDT`;
+          `COBRADO: ${amountUSDT.toFixed(0)} USDT (${percentageLabel})`;
 
         const waitingMsg = await ctx.replyWithMarkdown(waitingMessage);
         chatManager.registerBotMessage(ctx.from.id, waitingMsg.message_id);
