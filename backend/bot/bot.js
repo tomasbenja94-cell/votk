@@ -6,6 +6,22 @@ require('dotenv').config();
 const bot = new Telegraf(process.env.BOT_TOKEN || config.bot_token);
 const chatManager = require('./utils/chatManager');
 
+async function ensureUserFeeColumns() {
+  try {
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS fee_percentage NUMERIC(5,2) DEFAULT 20
+    `);
+
+    await pool.query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS fee_min_amount_ars NUMERIC(18,2) DEFAULT 0
+    `);
+  } catch (error) {
+    console.error('Error ensuring user fee columns:', error);
+  }
+}
+
 // Middleware para verificar baneos
 bot.use(async (ctx, next) => {
   if (ctx.from && ctx.from.id) {
@@ -120,6 +136,7 @@ bot.command('comandosgrupo', commandHandlers.comandosgrupo);
 bot.command('comandosop', commandHandlers.comandosop);
 bot.command('allcomands', commandHandlers.allcomands);
 bot.command('politicas', commandHandlers.politicas);
+bot.command('porcentaje', adminHandlers.porcentaje);
 bot.command('banear', adminHandlers.banear);
 bot.command('notificaciones', commandHandlers.notificaciones);
 bot.command('noticia', adminHandlers.noticia);
@@ -339,6 +356,8 @@ bot.catch((err, ctx) => {
 // Initialize bot
 async function startBot() {
   try {
+    await ensureUserFeeColumns();
+
     // Set bot commands menu - configure autocomplete menu
     try {
             await bot.telegram.setMyCommands([

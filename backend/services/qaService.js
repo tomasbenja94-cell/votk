@@ -12,7 +12,7 @@ const knowledgeBase = [
     intent: 'pagar_detalle',
     keywords: ['pagar', 'flujo', 'categorias', 'menu pagar'],
     answer:
-      'El comando `/pagar` abre cuatro categorías: Multas PBA, Macro/PlusPagos, Rentas Córdoba y Otros Servicios. Cada opción pide los datos necesarios (identificador, monto, referencia) y genera la orden descontando el 20% correspondiente.'
+      'El comando `/pagar` abre cuatro categorías: Multas PBA, Macro/PlusPagos, Rentas Córdoba y Otros Servicios. Cada opción pide los datos necesarios (identificador, monto, referencia) y genera la orden aplicando la comisión configurada (por defecto 20%).'
   },
   {
     intent: 'cargar_detalle',
@@ -54,13 +54,19 @@ const knowledgeBase = [
     intent: 'rentas_detalle',
     keywords: ['rentas', 'cordoba', 'automotor', 'inmobiliario', 'ingresos brutos'],
     answer:
-      'En `/pagar` → Rentas Córdoba tenés Automotor, Inmobiliario, Ingresos Brutos, Sellos y Multas de Caminera. Cada opción solicita los datos específicos antes de calcular el monto a pagar más el 20%.'
+      'En `/pagar` → Rentas Córdoba tenés Automotor, Inmobiliario, Ingresos Brutos, Sellos y Multas de Caminera. Cada opción solicita los datos específicos antes de calcular el monto y la comisión configurada para ese usuario.'
   },
   {
     intent: 'comision_detalle',
     keywords: ['comision', '20%', 'fee', 'redondeo'],
     answer:
-      'La comisión es del 20% sobre el monto en USDT. El bot calcula el valor, lo redondea siempre hacia arriba al entero más cercano y lo descuenta automáticamente de tu saldo cuando confirmás el pago.'
+      'La comisión la define el administrador (valor predeterminado 20%). El bot calcula ese porcentaje sobre el monto en USDT, lo redondea al entero más cercano y lo descuenta automáticamente de tu saldo cuando confirmás el pago.'
+  },
+  {
+    intent: 'porcentaje_admin',
+    keywords: ['porcentaje', 'comision usuario', 'fee personalizado', 'monto minimo'],
+    answer:
+      'Los superadministradores pueden usar `/porcentaje @usuario 15 100000` para fijar una comisión personalizada. El primer número es el porcentaje y el segundo, opcional, el monto mínimo en ARS a partir del cual se aplica. Si solo se ejecuta `/porcentaje @usuario`, el bot guía paso a paso.'
   },
   {
     intent: 'comprobante_detalle',

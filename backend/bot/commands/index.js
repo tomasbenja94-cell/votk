@@ -15,6 +15,7 @@ const ADMIN_COMMANDS_BY_ROLE = {
     '/config - Ver configuración del bot',
     '/setgroupchatid <link> - Configurar chat de administración',
     '/eliminarsaldo <telegram_id> <monto> - Ajustar saldo de un usuario',
+    '/porcentaje @usuario <porcentaje> [monto] - Configurar comisión personalizada',
     '/banear @usuario <minutos> - Banear usuarios temporalmente',
     '/noticia - Enviar noticia a todos los usuarios',
     '/resumen - Resumen diario de operaciones',
@@ -1073,6 +1074,7 @@ const commands = {
         `*Solo para administradores:*\n\n` +
         `/trc20 - Muestra el enlace de Tronscan para transacciones TRC20\n` +
         `/bep20 - Muestra el enlace de BSCScan para transacciones BEP20\n` +
+        `/porcentaje @usuario <porcentaje> [monto] - Ajustar comisión individual\n` +
         `/comandosgrupo - Ver esta lista de comandos de grupo\n` +
         `/comandosop - Ver comandos de administración\n\n` +
         `*Nota:* Estos comandos solo funcionan en grupos de administración configurados.`;
@@ -1353,6 +1355,7 @@ const commands = {
         '`/config` — Configuración.',
         '`/setgroupchatid` — Registrar chats.',
         '`/eliminarsaldo` — Ajustar saldo.',
+        '`/porcentaje` — Ajustar comisión personalizada por usuario.',
         '`/banear` — Banear usuarios temporalmente.',
         '`/noticia` — Enviar anuncios masivos.',
         '`/resumen` — Resumen diario.',
@@ -1366,6 +1369,7 @@ const commands = {
         '*En grupos de administración:*',
         '`/trc20` — Link Tronscan.',
         '`/bep20` — Link BSCScan.',
+        '`/porcentaje` — Configurar porcentaje para un usuario específico.',
         '`/comandosgrupo` — Lista de comandos para grupos.'
       ].join('\n');
 

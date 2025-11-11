@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT NOW(),
   last_active TIMESTAMP DEFAULT NOW(),
   notify_instant BOOLEAN DEFAULT true,
-  notify_daily_summary BOOLEAN DEFAULT false
+  notify_daily_summary BOOLEAN DEFAULT false,
+  fee_percentage NUMERIC(5,2) DEFAULT 20,
+  fee_min_amount_ars NUMERIC(18,2) DEFAULT 0
 );
 
 -- Transactions table
