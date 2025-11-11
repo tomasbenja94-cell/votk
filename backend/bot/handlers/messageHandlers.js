@@ -69,6 +69,50 @@ async function sendPaymentReceiptPDF(ctx, details) {
   }
 }
 
+function formatPercentText(value) {
+  if (value === null || value === undefined) {
+    return '20';
+  }
+  const num = parseFloat(value);
+  if (Number.isNaN(num)) {
+    return '20';
+  }
+  return Number.isInteger(num) ? num.toFixed(0) : num.toFixed(2).replace(/\.00$/, '');
+}
+
+function computeUserFee(userRow, amountArs, amountTotalUsdt) {
+  const basePercent = 20;
+  let percentValue = basePercent;
+  let appliedCustom = false;
+  const customPercent = userRow?.custom_fee_percentage !== undefined && userRow?.custom_fee_percentage !== null
+    ? parseFloat(userRow.custom_fee_percentage)
+    : null;
+  const customMin = userRow?.custom_fee_min_amount_ars !== undefined && userRow?.custom_fee_min_amount_ars !== null
+    ? parseFloat(userRow.custom_fee_min_amount_ars)
+    : null;
+
+  if (!Number.isNaN(customPercent) && customPercent > 0) {
+    const meetsMin = Number.isNaN(customMin) || customMin <= 0 || amountArs >= customMin;
+    if (meetsMin) {
+      percentValue = customPercent;
+      appliedCustom = true;
+    }
+  }
+
+  let feeAmountUsdt = amountTotalUsdt * (percentValue / 100);
+  feeAmountUsdt = Math.round(feeAmountUsdt);
+  if (feeAmountUsdt < 1) {
+    feeAmountUsdt = 1;
+  }
+
+  return {
+    amountUsdt: feeAmountUsdt,
+    percentValue,
+    percentText: formatPercentText(percentValue),
+    appliedCustom
+  };
+}
+
 const handlers = {
   async handleText(ctx) {
     const userId = ctx.from.id;
@@ -872,9 +916,10 @@ const handlers = {
       const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
       const data = stateManager.getData(ctx.from.id);
       
-      // Convert ARS to USDT and calculate 20%
       const montoTotalUSDT = await priceService.convertARSToUSDT(monto);
-      const amountUSDT = Math.round(montoTotalUSDT * 0.20); // 20% rounded
+      const feeInfo = computeUserFee(user, monto, montoTotalUSDT);
+      const amountUSDT = feeInfo.amountUsdt;
+      const feePercentText = feeInfo.percentText;
       
       // Ensure saldo_usdt is a number
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
@@ -915,7 +960,7 @@ const handlers = {
         `📄 Número/DNI: ${data.dni || 'N/A'}\n` +
         `💰 Monto: $${monto} ARS\n` +
         `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
-        `💵 Total a cobrar (20%): ${amountUSDT} USDT\n\n` +
+        `💵 Total a cobrar (${feePercentText}%): ${amountUSDT} USDT\n\n` +
         `¿Deseás continuar?`;
 
       const keyboard = {
@@ -933,6 +978,14 @@ const handlers = {
       await chatManager.cleanChat(ctx, ctx.from.id, 1);
       const summarySent = await ctx.replyWithMarkdown(summaryMessage, keyboard);
       chatManager.registerBotMessage(ctx.from.id, summarySent.message_id);
+
+      stateManager.setData(ctx.from.id, {
+        ...data,
+        monto,
+        finalAmountUSDT: amountUSDT,
+        feePercentValue: feeInfo.percentValue,
+        feePercentText
+      });
     } catch (error) {
       console.error('Error in handlePagarMacroMonto:', error);
       const errorMsg = await messageService.getMessage('pagar_error');
