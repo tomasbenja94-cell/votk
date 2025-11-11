@@ -196,6 +196,19 @@ function formatARS(amount) {
   return `$${formattedInteger},${decimalPart}`;
 }
 
+function formatPercentage(value) {
+  const num = parseFloat(value);
+  if (!Number.isFinite(num)) {
+    return '0%';
+  }
+
+  if (Math.abs(num - Math.round(num)) < 0.01) {
+    return `${Math.round(num)}%`;
+  }
+
+  return `${num.toFixed(2).replace(/\.00$/, '')}%`;
+}
+
 function escapeMarkdown(text = '') {
   if (text === null || text === undefined) {
     return '';
@@ -212,6 +225,7 @@ module.exports = {
   getOrCreateUser,
   formatCurrency,
   formatARS,
+  formatPercentage,
   escapeMarkdown
 };
 

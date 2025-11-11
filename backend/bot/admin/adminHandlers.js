@@ -1,5 +1,5 @@
 const pool = require('../../db/connection');
-const { isAdmin, getOrCreateUser, formatCurrency, formatARS, getAdminContext } = require('../../utils/helpers');
+const { isAdmin, getOrCreateUser, formatCurrency, formatARS, formatPercentage, getAdminContext } = require('../../utils/helpers');
 const priceService = require('../../services/priceService');
 const stateManager = require('../handlers/stateManager');
 const auditLogger = require('../../services/auditLogger');
@@ -24,6 +24,8 @@ const ADMIN_PERMISSIONS = {
   }
 };
 
+const DEFAULT_FEE_PERCENTAGE = 20;
+
 function isCallback(ctx) {
   return ctx.updateType === 'callback_query';
 }
@@ -38,6 +40,155 @@ async function notifyPermissionDenied(ctx, message) {
     }
   } else {
     await ctx.reply(text);
+  }
+}
+
+function parsePercentageInput(input) {
+  if (input === undefined || input === null) return null;
+  const normalized = String(input).replace('%', '').replace(',', '.').trim();
+  if (normalized.length === 0) return null;
+  const value = parseFloat(normalized);
+  if (!Number.isFinite(value) || value < 0 || value > 100) {
+    return null;
+  }
+  return value;
+}
+
+function parseAmountInput(input) {
+  if (input === undefined || input === null) return null;
+  const normalized = String(input).trim().replace(/\s+/g, ' ').replace(/\./g, '').replace(',', '.');
+  if (normalized.length === 0) return null;
+  const value = parseFloat(normalized);
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return value;
+}
+
+async function findUserByIdentifier(identifier) {
+  if (!identifier) {
+    return null;
+  }
+
+  const trimmed = identifier.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const selectFields = 'id, telegram_id, username, fee_percentage, fee_min_amount_ars, saldo_usdt';
+
+  if (trimmed.startsWith('@')) {
+    const username = trimmed.replace('@', '').toLowerCase();
+    const result = await pool.query(
+      `SELECT ${selectFields}
+         FROM users
+        WHERE LOWER(REPLACE(COALESCE(username, ''), '@', '')) = $1
+        LIMIT 1`,
+      [username]
+    );
+    if (result.rows.length > 0) {
+      return result.rows[0];
+    }
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    // Try by telegram_id first
+    const resultByTelegram = await pool.query(
+      `SELECT ${selectFields}
+         FROM users
+        WHERE telegram_id = $1
+        LIMIT 1`,
+      [trimmed]
+    );
+    if (resultByTelegram.rows.length > 0) {
+      return resultByTelegram.rows[0];
+    }
+
+    // Then by internal user id
+    const resultById = await pool.query(
+      `SELECT ${selectFields}
+         FROM users
+        WHERE id = $1
+        LIMIT 1`,
+      [parseInt(trimmed, 10)]
+    );
+    if (resultById.rows.length > 0) {
+      return resultById.rows[0];
+    }
+  }
+
+  return null;
+}
+
+async function applyUserFeeSettings(ctx, adminContext, userRow, percentage, minAmount) {
+  const parsedPercentage = parseFloat(percentage);
+  const percentageValue = Math.max(0, Math.min(100, Number.isFinite(parsedPercentage) ? parsedPercentage : 0));
+  const parsedMinAmount = parseFloat(minAmount);
+  const minValue = Math.max(0, Number.isFinite(parsedMinAmount) ? parsedMinAmount : 0);
+
+  const roundedPercentage = Number(percentageValue.toFixed(2));
+  const roundedMinAmount = Number(minValue.toFixed(2));
+
+  const updateResult = await pool.query(
+    `UPDATE users
+        SET fee_percentage = $1,
+            fee_min_amount_ars = $2
+      WHERE id = $3
+      RETURNING id, telegram_id, username, fee_percentage, fee_min_amount_ars`,
+    [roundedPercentage, roundedMinAmount, userRow.id]
+  );
+
+  if (!updateResult.rows.length) {
+    throw new Error('No fue posible actualizar el usuario.');
+  }
+
+  const updatedUser = updateResult.rows[0];
+  const percentLabel = formatPercentage(updatedUser.fee_percentage ?? DEFAULT_FEE_PERCENTAGE);
+  const minLabel = formatARS(updatedUser.fee_min_amount_ars ?? 0);
+  const displayName = updatedUser.username
+    ? updatedUser.username
+    : (updatedUser.telegram_id ? `ID ${updatedUser.telegram_id}` : `Usuario #${updatedUser.id}`);
+
+  const adminReply = [
+    '✅ Ajuste registrado',
+    '',
+    `👤 Usuario: ${displayName}`,
+    `📊 Porcentaje aplicado: ${percentLabel}`,
+    `💵 Monto mínimo: ${minLabel}`
+  ].join('\n');
+
+  await ctx.reply(adminReply);
+
+  try {
+    const actor = adminContext?.username || (ctx.from.username ? `@${ctx.from.username}` : String(ctx.from.id));
+    await auditLogger.log(actor, 'user_fee_updated', JSON.stringify({
+      userId: updatedUser.id,
+      telegramId: updatedUser.telegram_id,
+      feePercentage: roundedPercentage,
+      feeMinAmountArs: roundedMinAmount
+    }));
+  } catch (logError) {
+    console.warn('No se pudo registrar el ajuste de porcentaje en el log:', logError.message);
+  }
+
+  if (updatedUser.telegram_id) {
+    const userNotification = [
+      '⚙️ Ajuste de comisión',
+      '',
+      `Se actualizó el porcentaje de servicio a ${percentLabel}.`,
+      'Cada operación descontará ese porcentaje sobre el monto final en USDT.',
+      roundedMinAmount > 0
+        ? `El porcentaje aplica para operaciones desde ${minLabel}.`
+        : 'El porcentaje aplica para todas tus operaciones.',
+      '',
+      'Ante cualquier consulta, contactá al equipo de soporte.'
+    ].join('\n');
+
+    try {
+      await ctx.telegram.sendMessage(updatedUser.telegram_id, userNotification);
+    } catch (notifyError) {
+      console.warn('No se pudo notificar al usuario sobre el ajuste de porcentaje:', notifyError.message);
+    }
   }
 }
 
@@ -2420,6 +2571,174 @@ const handlers = {
     } catch (error) {
       console.error('Error in /bep20:', error);
       await ctx.reply('❌ Error al ejecutar el comando.');
+    }
+  },
+
+  async porcentaje(ctx) {
+    try {
+      const adminContext = await ensureAdminPermission(ctx, 'manageUsers');
+      if (!adminContext) {
+        return;
+      }
+
+      const messageText = ctx.message.text || '';
+      const parts = messageText.split(' ').filter(Boolean);
+
+      if (parts.length < 2) {
+        await ctx.reply(
+          '❌ Uso inválido.\n\n' +
+          'Formato rápido: `/porcentaje @usuario 15 100000`\n' +
+          'Formato guiado: `/porcentaje @usuario`\n\n' +
+          'El segundo valor es el porcentaje y el tercero el monto mínimo opcional.',
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
+
+      const identifier = parts[1];
+      const targetUser = await findUserByIdentifier(identifier);
+
+      if (!targetUser) {
+        await ctx.reply('❌ Usuario no encontrado o sin actividad previa en el bot.');
+        return;
+      }
+
+      if (parts.length >= 3) {
+        const percentageValue = parsePercentageInput(parts[2]);
+        if (percentageValue === null) {
+          await ctx.reply('⚠️ Ingrese un porcentaje válido entre 0 y 100. Ejemplo: `/porcentaje @usuario 15`', { parse_mode: 'Markdown' });
+          return;
+        }
+
+        let minAmountValue = targetUser.fee_min_amount_ars || 0;
+        if (parts.length >= 4) {
+          const parsedMin = parseAmountInput(parts[3]);
+          if (parsedMin === null) {
+            await ctx.reply('⚠️ Ingrese un monto mínimo válido en ARS. Ejemplo: `/porcentaje @usuario 15 100000`', { parse_mode: 'Markdown' });
+            return;
+          }
+          minAmountValue = parsedMin;
+        }
+
+        await applyUserFeeSettings(ctx, adminContext, targetUser, percentageValue, minAmountValue);
+        return;
+      }
+
+      const displayName = targetUser.username
+        ? targetUser.username
+        : (targetUser.telegram_id ? `ID ${targetUser.telegram_id}` : `Usuario #${targetUser.id}`);
+
+      const currentPercentLabel = formatPercentage(targetUser.fee_percentage ?? DEFAULT_FEE_PERCENTAGE);
+      const currentMinLabel = formatARS(targetUser.fee_min_amount_ars ?? 0);
+
+      stateManager.setState(ctx.from.id, 'admin_set_percentage_waiting_percent');
+      stateManager.setData(ctx.from.id, {
+        percentageFlow: {
+          userId: targetUser.id,
+          telegramId: targetUser.telegram_id,
+          username: targetUser.username,
+          displayName,
+          identifier,
+          currentPercent: targetUser.fee_percentage ?? DEFAULT_FEE_PERCENTAGE,
+          currentMinAmount: targetUser.fee_min_amount_ars ?? 0
+        }
+      });
+
+      const promptMessage = [
+        `📊 Ajuste de porcentaje para ${displayName}`,
+        '',
+        `Porcentaje vigente: ${currentPercentLabel}`,
+        `Monto mínimo actual: ${currentMinLabel}`,
+        '',
+        'Ingrese el nuevo porcentaje (0 - 100).'
+      ].join('\n');
+
+      await ctx.reply(promptMessage);
+    } catch (error) {
+      console.error('Error en /porcentaje:', error);
+      await ctx.reply('❌ Error al procesar el ajuste de porcentaje.');
+    }
+  },
+
+  async handlePorcentajePercentStep(ctx, inputText) {
+    try {
+      const data = stateManager.getData(ctx.from.id);
+      const flow = data?.percentageFlow;
+
+      if (!flow) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('⚠️ No hay un ajuste en curso. Utiliza `/porcentaje @usuario` para iniciarlo.', { parse_mode: 'Markdown' });
+        return;
+      }
+
+      const percentageValue = parsePercentageInput(inputText);
+      if (percentageValue === null) {
+        await ctx.reply('⚠️ Ingrese un porcentaje válido entre 0 y 100. Ejemplo: 15');
+        return;
+      }
+
+      stateManager.setData(ctx.from.id, {
+        percentageFlow: {
+          ...flow,
+          pendingPercent: percentageValue
+        }
+      });
+
+      stateManager.setState(ctx.from.id, 'admin_set_percentage_waiting_min');
+
+      await ctx.reply(
+        '💵 Ingrese el monto mínimo en ARS a partir del cual se aplicará este porcentaje.\n\n' +
+        'Ejemplo: 100000,00\n' +
+        'Si desea que se aplique siempre, responda 0.'
+      );
+    } catch (error) {
+      console.error('Error en handlePorcentajePercentStep:', error);
+      stateManager.clearState(ctx.from.id);
+      await ctx.reply('❌ Error al procesar el porcentaje. Intenta nuevamente.');
+    }
+  },
+
+  async handlePorcentajeMinStep(ctx, inputText) {
+    try {
+      const data = stateManager.getData(ctx.from.id);
+      const flow = data?.percentageFlow;
+
+      if (!flow || flow.pendingPercent === undefined) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('⚠️ El ajuste fue cancelado. Usa `/porcentaje @usuario` para iniciarlo nuevamente.', { parse_mode: 'Markdown' });
+        return;
+      }
+
+      const minAmountValue = parseAmountInput(inputText);
+      if (minAmountValue === null) {
+        await ctx.reply('⚠️ Ingrese un monto mínimo válido en ARS. Ejemplo: 50000,00');
+        return;
+      }
+
+      const adminContext = await ensureAdminPermission(ctx, 'manageUsers');
+      if (!adminContext) {
+        stateManager.clearState(ctx.from.id);
+        return;
+      }
+
+      const userResult = await pool.query(
+        'SELECT id, telegram_id, username, fee_percentage, fee_min_amount_ars FROM users WHERE id = $1',
+        [flow.userId]
+      );
+
+      if (!userResult.rows.length) {
+        stateManager.clearState(ctx.from.id);
+        await ctx.reply('❌ El usuario ya no se encuentra registrado.');
+        return;
+      }
+
+      await applyUserFeeSettings(ctx, adminContext, userResult.rows[0], flow.pendingPercent, minAmountValue);
+
+      stateManager.clearState(ctx.from.id);
+    } catch (error) {
+      console.error('Error en handlePorcentajeMinStep:', error);
+      stateManager.clearState(ctx.from.id);
+      await ctx.reply('❌ Error al registrar el monto mínimo. Intenta nuevamente.');
     }
   },
 
