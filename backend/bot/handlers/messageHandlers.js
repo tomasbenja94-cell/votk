@@ -1223,8 +1223,6 @@ const handlers = {
       const data = stateManager.getData(ctx.from.id);
       const feePercent = data?.feePercent !== undefined ? data.feePercent : DEFAULT_FEE_PERCENTAGE;
       const percentageLabel = data?.feePercentLabel || formatPercentage(feePercent);
-      const feePercent = data?.feePercent !== undefined ? data.feePercent : DEFAULT_FEE_PERCENTAGE;
-      const percentageLabel = data?.feePercentLabel || formatPercentage(feePercent);
 
       const user = await getOrCreateUser(ctx.from.id, ctx.from.username);
       const saldoUsdt = parseFloat(user.saldo_usdt) || 0;
