@@ -1634,10 +1634,19 @@ const handlers = {
       let nombreServicio = 'Servicio';
       try {
         const adminMessageText = ctx.callbackQuery.message.text || ctx.callbackQuery.message.caption || '';
-        const servicioMatch = adminMessageText.match(/📋 Servicio: (.+)/);
+        
+        // Intentar extraer el nombre del servicio del mensaje del admin
+        // Buscar "Servicio: " en diferentes formatos
+        const servicioMatch1 = adminMessageText.match(/Servicio: (.+?)(?:\n|$)/);
+        const servicioMatch2 = adminMessageText.match(/📋 Servicio: (.+?)(?:\n|$)/);
+        const servicioMatch = servicioMatch2 || servicioMatch1;
+        
         if (servicioMatch) {
           nombreServicio = servicioMatch[1].trim();
+          // Limpiar el nombre del servicio (remover emojis y caracteres especiales si es necesario)
+          nombreServicio = nombreServicio.replace(/^📋\s*/, '').trim();
         } else {
+          // Fallback a tipos conocidos
           if (adminMessageText.includes('Macro/PlusPagos') || adminMessageText.includes('MACRO / PLUSPAGOS')) {
             nombreServicio = 'Macro/PlusPagos';
           } else if (adminMessageText.includes('Rentas Córdoba') || adminMessageText.includes('RENTAS CÓRDOBA')) {
@@ -1648,7 +1657,9 @@ const handlers = {
             nombreServicio = 'Multa';
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error extracting service name:', e);
+      }
 
       const montoFormateado = txForMessage.rows[0]?.amount_ars ? formatARS(txForMessage.rows[0].amount_ars) : '';
       const amountUSDT = parseFloat(txForMessage.rows[0]?.amount_usdt || 0);
@@ -1805,8 +1816,8 @@ const handlers = {
             empresa: nombreServicio
           });
 
-          // Create caption message
-          const channelMessage = `Pago realizado exitosamente. ✅\n\n` +
+          // Create caption message - solo descripción, sin datos en la imagen
+          const channelMessage = `Pago realizado por el bot exitosamente. ✅\n\n` +
             `Empresa: ${nombreServicio}\n` +
             `Monto: ${montoFormateado}\n` +
             `Transacción #${transactionId}\n\n` +

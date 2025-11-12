@@ -170,6 +170,34 @@ bot.on('callback_query', async (ctx) => {
     } else if (data === 'multa_cancel') {
       await messageHandlers.handleMultaCancel(ctx);
       return; // Don't call answerCbQuery again, it's already called in the handler
+    } else if (data === 'pagar_otra_si_datos_extra') {
+      await ctx.answerCbQuery('📝 Escribe los datos extra...');
+      const stateManager = require('./handlers/stateManager');
+      stateManager.setState(ctx.from.id, 'pagar_otra_waiting_datos_extra_input');
+      await ctx.reply('📝 *Escribe los datos extra para pagar:*\n\n⬅️ *Regresar al menú principal*', {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Regresar', callback_data: 'action_back' }]
+          ]
+        }
+      });
+      return;
+    } else if (data === 'pagar_otra_no_datos_extra') {
+      await ctx.answerCbQuery('✅ Continuando...');
+      const stateManager = require('./handlers/stateManager');
+      const data = stateManager.getData(ctx.from.id);
+      stateManager.setData(ctx.from.id, { ...data, datos_extra: null });
+      stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+      await ctx.reply('💰 *Ingresá el monto total en ARS:*\n\n📝 *Formato:*\nEjemplo: `500000,00`\nSe interpreta como: *$ 500.000,00*\n\n⬅️ *Regresar al menú principal*', {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Regresar', callback_data: 'action_back' }]
+          ]
+        }
+      });
+      return;
     } else if (data.startsWith('pago_confirm_otra_') || data.startsWith('pago_confirm_rentas_')) {
       await messageHandlers.handlePagoConfirmOtraRentas(ctx, data);
       return; // Don't call answerCbQuery again, it's already called in the handler

@@ -13,62 +13,6 @@ const adminHandlers = require('../admin/adminHandlers');
 const config = require('../../config/default.json');
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
-
-const sanitizeForPDF = (value, fallback = 'N/A') => {
-  if (value === null || value === undefined) return fallback;
-  const cleaned = value
-    .toString()
-    .replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\.\,\-\/\$#:]/g, '')
-    .trim();
-  return cleaned || fallback;
-};
-
-function createReceiptPDFBuffer({ transactionId, headerName, serviceName, codeLabel, codeValue, amountFormatted }) {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 50 });
-      const buffers = [];
-      doc.on('data', (chunk) => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', reject);
-
-      const cleanServiceName = sanitizeForPDF(serviceName, 'N/A');
-      const cleanHeader = sanitizeForPDF(headerName || cleanServiceName, cleanServiceName).toUpperCase();
-      const cleanCodeLabel = sanitizeForPDF(codeLabel, 'Dato');
-      const cleanCodeValue = sanitizeForPDF(codeValue, 'N/A');
-      const cleanAmount = sanitizeForPDF(amountFormatted, 'N/A');
-
-      doc.fontSize(14).text(`Transacción #: ${transactionId}`, { align: 'left' });
-      doc.moveDown();
-      const borderLine = '==============================';
-      doc.fontSize(18).text(borderLine, { align: 'center' });
-      doc.fontSize(16).text(`PAGO - ${cleanHeader}`, { align: 'center' });
-      doc.fontSize(18).text(borderLine, { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(14).text(`Servicio: ${cleanServiceName}`);
-      doc.text(`${cleanCodeLabel}: ${cleanCodeValue}`);
-      doc.text(`Monto ARS: ${cleanAmount}`);
-      doc.moveDown();
-      doc.fontSize(14).text('COMPROBANTE DE PAGO.', { align: 'center' });
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
-async function sendPaymentReceiptPDF(ctx, details) {
-  try {
-    const pdfBuffer = await createReceiptPDFBuffer(details);
-    const filename = `comprobante-${details.transactionId}.pdf`;
-    return await ctx.replyWithDocument({ source: pdfBuffer, filename });
-  } catch (error) {
-    console.error('Error sending payment receipt PDF:', error);
-    return null;
-  }
-}
-
 const DEFAULT_FEE_PERCENTAGE = 20;
 
 const resolveUserFeeSettings = (user = {}) => {
@@ -171,6 +115,9 @@ const handlers = {
         break;
       case 'pagar_otra_waiting_codigo':
         await this.handlePagarOtraCodigo(ctx, text);
+        break;
+      case 'pagar_otra_waiting_datos_extra_input':
+        await this.handlePagarOtraDatosExtra(ctx, text);
         break;
       case 'pagar_otra_multa_waiting_codigo':
         await this.handlePagarOtraMultaCodigo(ctx, text);
@@ -1141,12 +1088,16 @@ const handlers = {
       
       if (type === 'otra') {
         // For "PAGAR OTRO SERVICIO" - mostrar monto total y el porcentaje aplicado
+        // Include datos extra if provided
+        const datosExtra = data.datos_extra ? `\n📝 Datos adicionales: ${data.datos_extra}` : '';
         summaryMessage = `💳 *Confirmá el pago:*\n\n` +
           `📋 Servicio: ${data.nombre_servicio || 'N/A'}\n` +
-          `📄 Código/Número: ${data.codigo || 'N/A'}\n` +
+          `📄 Código/Número: ${data.codigo || 'N/A'}${datosExtra}\n` +
           `💰 Monto: ${montoFormateado} ARS\n` +
           `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
           `💵 Total a cobrar (${percentageLabel}): ${finalAmountUSDT} USDT\n\n` +
+          `⚠️ *Advertencia:*\n` +
+          `Recuerde que el servicio no debe estar ban, ningún tipo de restricción al momento de abonar, de lo contrario se cancelará.\n\n` +
           `¿Deseás confirmar la orden?`;
       } else if (type === 'rentas') {
         // For rentas
@@ -1168,12 +1119,15 @@ const handlers = {
           datoValor = data.patente || 'N/A';
         }
         
+        const datosExtra = data.datos_extra ? `\n📝 Datos adicionales: ${data.datos_extra}` : '';
         summaryMessage = `💳 *Confirmá el pago (Rentas Córdoba):*\n\n` +
           `📋 Tipo: ${rentaTipo.replace('_', ' ')}\n` +
-          `📄 ${datoLabel}: ${datoValor}\n` +
+          `📄 ${datoLabel}: ${datoValor}${datosExtra}\n` +
           `💰 Monto: ${montoFormateado} ARS\n` +
           `💵 Monto Total (USDT): ${montoTotalUSDT.toFixed(2)}\n` +
           `💵 Total a cobrar (${percentageLabel}): ${finalAmountUSDT} USDT\n\n` +
+          `⚠️ *Advertencia:*\n` +
+          `Recuerde que el servicio no debe estar ban, ningún tipo de restricción al momento de abonar, de lo contrario se cancelará.\n\n` +
           `¿Deseás confirmar la orden?`;
       } else {
         // Fallback for any other type
@@ -1386,21 +1340,7 @@ const handlers = {
           [userMessageInfo, transaction.id]
         );
 
-        const receiptDetails = {
-          transactionId: transaction.id,
-          headerName: servicioText || 'MACRO/PLUS',
-          serviceName: servicioText !== 'N/A' ? servicioText : 'Macro / PlusPagos',
-          codeLabel: 'Número / DNI',
-          codeValue: dniText || 'N/A',
-          amountFormatted: montoFormateado
-        };
-
         await ctx.answerCbQuery('✅ Pago confirmado');
-
-        const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
-        if (receiptMsg) {
-          chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
-        }
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
@@ -1518,26 +1458,17 @@ const handlers = {
         const montoFormateadoAdmin = formatARS(monto);
         const montoTotalUSDTGeneral = data?.montoTotalUSDT || await priceService.convertARSToUSDT(monto);
         let adminMessage;
-        let receiptDetails = null;
         const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
         
         if (type === 'otra') {
-          const serviceName = data.nombre_servicio || 'Otro Servicio';
-          receiptDetails = {
-            transactionId: transaction.id,
-            headerName: serviceName,
-            serviceName,
-            codeLabel: 'Código / Número',
-            codeValue: data.codigo || 'N/A'
-          };
-
+          const datosExtraText = data.datos_extra ? `\nDatos adicionales: ${data.datos_extra}` : '';
           adminMessage = [
             '╔══════════════════════════╗',
             '  SOLICITUD DE PAGO - OTRO SERVICIO',
             '╚══════════════════════════╝',
             `Cliente: ${usernameText}`,
             `Servicio: ${data.nombre_servicio || 'N/A'}`,
-            `Código / Número: ${data.codigo || 'N/A'}`,
+            `Código / Número: ${data.codigo || 'N/A'}${datosExtraText}`,
             `Monto ARS: ${montoFormateadoAdmin}`,
             `Monto total USDT: ${montoTotalUSDTGeneral.toFixed(2)}`,
             `Cobrado (${percentageLabel}): ${amountUSDT.toFixed(2)} USDT`,
@@ -1567,13 +1498,6 @@ const handlers = {
 
           const rentaTipoText = rentaTipo.replace('_', ' ');
           const plainLabel = datoLabel.replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\/\-\.\#]/g, '').trim() || 'Dato';
-          receiptDetails = {
-            transactionId: transaction.id,
-            headerName: rentaTipoText,
-            serviceName: data.nombre_servicio || `Rentas Córdoba - ${rentaTipoText}`,
-            codeLabel: plainLabel,
-            codeValue: datoValor || 'N/A'
-          };
 
           adminMessage = [
             '╔══════════════════════════╗',
@@ -1644,14 +1568,6 @@ const handlers = {
         );
 
         await ctx.answerCbQuery('✅ Orden confirmada');
-
-        if (receiptDetails) {
-          receiptDetails.amountFormatted = montoFormateado;
-          const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
-          if (receiptMsg) {
-            chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
-          }
-        }
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
@@ -1770,7 +1686,6 @@ const handlers = {
         const multaTipo = data.multa_tipo || 'PBA';
         
         let adminMessage;
-        let receiptDetails = null;
         
         // Si es PBA, usar formato antiguo
         const usernameText = ctx.from.username ? `@${ctx.from.username}` : 'sin_username';
@@ -1779,14 +1694,6 @@ const handlers = {
           const sexoText = data.sexo || 'N/A';
           const tramiteText = data.tramite || 'N/A';
           const patenteText = data.patente || 'N/A';
-
-          receiptDetails = {
-            transactionId: transaction.id,
-            headerName: 'MULTAS PBA',
-            serviceName: 'Multas PBA',
-            codeLabel: 'N° de trámite',
-            codeValue: tramiteText || patenteText || data.dni || 'N/A'
-          };
 
           adminMessage = [
             '╔══════════════════════════╗',
@@ -1833,13 +1740,6 @@ const handlers = {
           
           const plainLabel = datoLabel.replace(/[^\w\sÁÉÍÓÚáéíóúÑñ0-9\/\-\.\#]/g, '').trim() || 'Dato';
           const serviceName = `Multas ${multaTipo.replace('_', ' ')}`;
-          receiptDetails = {
-            transactionId: transaction.id,
-            headerName: serviceName,
-            serviceName,
-            codeLabel: plainLabel,
-            codeValue: datoPago || 'N/A'
-          };
           adminMessage = [
             '╔══════════════════════════╗',
             '  NUEVA ORDEN DE PAGO - MULTAS',
@@ -1916,14 +1816,6 @@ const handlers = {
 
         stateManager.clearState(ctx.from.id);
         await ctx.answerCbQuery('✅ Orden confirmada');
-
-        if (receiptDetails) {
-          receiptDetails.amountFormatted = montoFormateado;
-          const receiptMsg = await sendPaymentReceiptPDF(ctx, receiptDetails);
-          if (receiptMsg) {
-            chatManager.registerBotMessage(ctx.from.id, receiptMsg.message_id);
-          }
-        }
       } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
         throw error;
@@ -2140,13 +2032,51 @@ const handlers = {
   },
 
   async handlePagarOtraCodigo(ctx, codigo) {
-    const codigoOnly = codigo.split('\n')[0].trim();
+    // Capturar TODOS los datos que el usuario ingresa (no solo la primera línea)
+    const codigoCompleto = codigo.trim();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, codigo: codigoOnly });
+    stateManager.setData(ctx.from.id, { ...data, codigo: codigoCompleto });
+    
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_otra_waiting_datos_extra');
+    
+    const message = `✅ *Código/Número registrado*\n\n` +
+      `📄 Código/Número: ${codigoCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_otra_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_otra_no_datos_extra' }
+          ],
+          [{ text: 'Regresar', callback_data: 'action_back' }]
+        ]
+      }
+    };
+    
+    const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+    chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+  },
+
+  async handlePagarOtraDatosExtra(ctx, datosExtra) {
+    // Capturar TODOS los datos extra que el usuario ingresa
+    const datosExtraCompleto = datosExtra.trim();
+    
+    const data = stateManager.getData(ctx.from.id);
+    stateManager.setData(ctx.from.id, { ...data, datos_extra: datosExtraCompleto });
     stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    const message = `✅ *Datos adicionales registrados*\n\n` +
+      `📝 Datos extra: ${datosExtraCompleto}\n\n` +
+      `💰 *Ingresá el monto total en ARS:*\n\n` +
+      `📝 *Formato:*\n` +
+      `Ejemplo: \`500000,00\`\n` +
+      `Se interpreta como: *$ 500.000,00*\n\n` +
+      `⬅️ *Regresar al menú principal*`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
