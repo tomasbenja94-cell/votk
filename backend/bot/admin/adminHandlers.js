@@ -12,7 +12,7 @@ const config = require('../../config/default.json');
 const dailySummaryService = require('../../services/dailySummaryService');
 const webhookService = require('../../services/webhookService');
 const { generatePaymentReceiptPDF } = require('../utils/pdfReceipt');
-const { generateReceiptImage } = require('../utils/receiptImage');
+const { getReceiptImage } = require('../utils/receiptImage');
 
 const ADMIN_PERMISSIONS = {
   superadmin: {
@@ -1807,14 +1807,12 @@ const handlers = {
         }
       }
       
-      // Generate and send receipt image to public channel
+      // Send receipt image to public channel
       try {
         const publicChannel = config.public_channel;
         if (publicChannel) {
-          // Generate receipt image
-          const receiptImageBuffer = await generateReceiptImage({
-            empresa: nombreServicio
-          });
+          // Get static receipt image
+          const receiptImageBuffer = await getReceiptImage();
 
           // Create caption message - solo descripción, sin datos en la imagen
           const channelMessage = `Pago realizado por el bot exitosamente. ✅\n\n` +

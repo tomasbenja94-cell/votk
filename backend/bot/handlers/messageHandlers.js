@@ -119,6 +119,15 @@ const handlers = {
       case 'pagar_otra_waiting_datos_extra_input':
         await this.handlePagarOtraDatosExtra(ctx, text);
         break;
+      case 'pagar_macro_waiting_datos_extra_input':
+        await this.handlePagarMacroDatosExtra(ctx, text);
+        break;
+      case 'pagar_waiting_datos_extra_input':
+        await this.handlePagarDatosExtra(ctx, text);
+        break;
+      case 'pagar_rentas_waiting_datos_extra_input':
+        await this.handlePagarRentasDatosExtra(ctx, text);
+        break;
       case 'pagar_otra_multa_waiting_codigo':
         await this.handlePagarOtraMultaCodigo(ctx, text);
         break;
@@ -717,28 +726,39 @@ const handlers = {
   },
 
   async handlePagarPatente(ctx, patente) {
-    // Extraer solo la primera línea en caso de múltiples líneas
-    const patenteOnly = patente.split('\n')[0].trim().toUpperCase();
+    // Capturar TODOS los datos que el usuario ingresa (no solo la primera línea)
+    const patenteCompleto = patente.trim().toUpperCase();
     
-    // Validar longitud de la patente (exactamente 6 caracteres)
-    if (patenteOnly.length !== 6) {
+    // Validar longitud de la patente (exactamente 6 caracteres para PBA)
+    const data = stateManager.getData(ctx.from.id);
+    const multaTipo = data?.multa_tipo || 'PBA';
+    
+    if (multaTipo === 'PBA' && patenteCompleto.length !== 6) {
       await ctx.reply('⚠️ La patente debe contener 6 caracteres. Verifique e ingrese nuevamente.');
       return;
     }
     
-    stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), patente: patenteOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, patente: patenteCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_waiting_datos_extra');
+    
+    const message = `✅ *Patente registrada*\n\n` +
+      `🚗 Patente: ${patenteCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
     };
     
-    // NO limpiar mensajes durante el flujo de entrada de datos - solo responder
     const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
     chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
   },
@@ -776,32 +796,30 @@ const handlers = {
   },
 
   async handlePagarMacroDNI(ctx, dni) {
-    // Extraer solo la primera línea en caso de múltiples líneas
-    const dniOnly = dni.split('\n')[0].trim();
+    // Capturar TODOS los datos que el usuario ingresa (no solo la primera línea)
+    const dniCompleto = dni.trim();
     
-    if (!dniOnly || dniOnly.length < 4) {
+    if (!dniCompleto || dniCompleto.length < 4) {
       await ctx.reply('⚠️ Ingrese un número de servicio válido (mínimo 4 caracteres).');
       return;
     }
     
-    stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), dni: dniOnly });
-    stateManager.setState(ctx.from.id, 'pagar_macro_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...stateManager.getData(ctx.from.id), dni: dniCompleto });
     
-    const message = [
-      `+ 🔢 Código de pago registrado: *${dniOnly}*`,
-      '',
-      '💰 Ingresá el monto total en ARS:',
-      '',
-      '📝 *Formato:*',
-      'Ejemplo: `500000,00`',
-      'Se interpreta como: *$ 500.000,00*',
-      '',
-      '⬅️ *Regresar al menú principal*'
-    ].join('\n');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_macro_waiting_datos_extra');
+    
+    const message = `✅ *Código de pago registrado*\n\n` +
+      `🔢 Código/Número: ${dniCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
     
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_macro_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_macro_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -1869,21 +1887,31 @@ const handlers = {
   },
 
   async handlePagarCABAPatente(ctx, patente) {
-    const patenteOnly = patente.split('\n')[0].trim().toUpperCase();
+    // Capturar TODOS los datos que el usuario ingresa
+    const patenteCompleto = patente.trim().toUpperCase();
     
-    if (patenteOnly.length !== 6) {
+    if (patenteCompleto.length !== 6) {
       await ctx.reply('❌ La patente debe tener exactamente 6 caracteres.');
       return;
     }
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, patente: patenteOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, patente: patenteCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_waiting_datos_extra');
+    
+    const message = `✅ *Patente registrada*\n\n` +
+      `🚗 Patente: ${patenteCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -1932,16 +1960,26 @@ const handlers = {
   },
 
   async handlePagarRentasAutomotorPatente(ctx, patente) {
-    const patenteOnly = patente.split('\n')[0].trim().toUpperCase();
+    // Capturar TODOS los datos que el usuario ingresa
+    const patenteCompleto = patente.trim().toUpperCase();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, patente: patenteOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, patente: patenteCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_rentas_waiting_datos_extra');
+    
+    const message = `✅ *Patente registrada*\n\n` +
+      `🚗 Patente: ${patenteCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_rentas_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_rentas_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -1952,16 +1990,26 @@ const handlers = {
   },
 
   async handlePagarRentasInmobiliarioCuenta(ctx, cuenta) {
-    const cuentaOnly = cuenta.split('\n')[0].trim();
+    // Capturar TODOS los datos que el usuario ingresa
+    const cuentaCompleto = cuenta.trim();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, cuenta: cuentaOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, partida: cuentaCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_rentas_waiting_datos_extra');
+    
+    const message = `✅ *Partida registrada*\n\n` +
+      `📄 Partida: ${cuentaCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_rentas_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_rentas_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -1972,16 +2020,26 @@ const handlers = {
   },
 
   async handlePagarRentasIngresosInscripcion(ctx, inscripcion) {
-    const inscripcionOnly = inscripcion.split('\n')[0].trim();
+    // Capturar TODOS los datos que el usuario ingresa
+    const inscripcionCompleto = inscripcion.trim();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, inscripcion: inscripcionOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, cuit: inscripcionCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_rentas_waiting_datos_extra');
+    
+    const message = `✅ *CUIT registrado*\n\n` +
+      `📄 CUIT: ${inscripcionCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_rentas_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_rentas_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -1992,16 +2050,26 @@ const handlers = {
   },
 
   async handlePagarRentasSellosIdentificacion(ctx, identificacion) {
-    const identificacionOnly = identificacion.split('\n')[0].trim();
+    // Capturar TODOS los datos que el usuario ingresa
+    const identificacionCompleto = identificacion.trim();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, identificacion: identificacionOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, codigo: identificacionCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_rentas_waiting_datos_extra');
+    
+    const message = `✅ *Dato registrado*\n\n` +
+      `📄 Dato: ${identificacionCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_rentas_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_rentas_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -2012,16 +2080,26 @@ const handlers = {
   },
 
   async handlePagarRentasCamineraDato(ctx, dato) {
-    const datoOnly = dato.split('\n')[0].trim();
+    // Capturar TODOS los datos que el usuario ingresa
+    const datoCompleto = dato.trim();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, dato: datoOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, patente: datoCompleto });
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_rentas_waiting_datos_extra');
+    
+    const message = `✅ *Dato registrado*\n\n` +
+      `📄 Dato: ${datoCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_rentas_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_rentas_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
@@ -2089,17 +2167,111 @@ const handlers = {
     chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
   },
 
-  async handlePagarOtraMultaCodigo(ctx, codigo) {
-    const codigoOnly = codigo.split('\n')[0].trim();
+  async handlePagarMacroDatosExtra(ctx, datosExtra) {
+    // Capturar TODOS los datos extra que el usuario ingresa
+    const datosExtraCompleto = datosExtra.trim();
     
     const data = stateManager.getData(ctx.from.id);
-    stateManager.setData(ctx.from.id, { ...data, codigo: codigoOnly });
-    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    stateManager.setData(ctx.from.id, { ...data, datos_extra: datosExtraCompleto });
+    stateManager.setState(ctx.from.id, 'pagar_macro_waiting_monto');
     
-    const message = await messageService.getMessage('pagar_rentas_monto');
+    const message = `✅ *Datos adicionales registrados*\n\n` +
+      `📝 Datos extra: ${datosExtraCompleto}\n\n` +
+      `💰 *Ingresá el monto total en ARS:*\n\n` +
+      `📝 *Formato:*\n` +
+      `Ejemplo: \`500000,00\`\n` +
+      `Se interpreta como: *$ 500.000,00*\n\n` +
+      `⬅️ *Regresar al menú principal*`;
+    
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
+          [{ text: 'Regresar', callback_data: 'action_back' }]
+        ]
+      }
+    };
+    
+    const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+    chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+  },
+
+  async handlePagarDatosExtra(ctx, datosExtra) {
+    // Capturar TODOS los datos extra que el usuario ingresa
+    const datosExtraCompleto = datosExtra.trim();
+    
+    const data = stateManager.getData(ctx.from.id);
+    stateManager.setData(ctx.from.id, { ...data, datos_extra: datosExtraCompleto });
+    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    
+    const message = `✅ *Datos adicionales registrados*\n\n` +
+      `📝 Datos extra: ${datosExtraCompleto}\n\n` +
+      `💰 *Ingresá el monto total en ARS:*\n\n` +
+      `📝 *Formato:*\n` +
+      `Ejemplo: \`500000,00\`\n` +
+      `Se interpreta como: *$ 500.000,00*\n\n` +
+      `⬅️ *Regresar al menú principal*`;
+    
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Regresar', callback_data: 'action_back' }]
+        ]
+      }
+    };
+    
+    const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+    chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+  },
+
+  async handlePagarRentasDatosExtra(ctx, datosExtra) {
+    // Capturar TODOS los datos extra que el usuario ingresa
+    const datosExtraCompleto = datosExtra.trim();
+    
+    const data = stateManager.getData(ctx.from.id);
+    stateManager.setData(ctx.from.id, { ...data, datos_extra: datosExtraCompleto });
+    stateManager.setState(ctx.from.id, 'pagar_waiting_monto');
+    
+    const message = `✅ *Datos adicionales registrados*\n\n` +
+      `📝 Datos extra: ${datosExtraCompleto}\n\n` +
+      `💰 *Ingresá el monto total en ARS:*\n\n` +
+      `📝 *Formato:*\n` +
+      `Ejemplo: \`500000,00\`\n` +
+      `Se interpreta como: *$ 500.000,00*\n\n` +
+      `⬅️ *Regresar al menú principal*`;
+    
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Regresar', callback_data: 'action_back' }]
+        ]
+      }
+    };
+    
+    const sentMessage = await ctx.replyWithMarkdown(message, keyboard);
+    chatManager.registerBotMessage(ctx.from.id, sentMessage.message_id);
+  },
+
+  async handlePagarOtraMultaCodigo(ctx, codigo) {
+    // Capturar TODOS los datos que el usuario ingresa
+    const codigoCompleto = codigo.trim();
+    
+    const data = stateManager.getData(ctx.from.id);
+    stateManager.setData(ctx.from.id, { ...data, codigo: codigoCompleto });
+    
+    // Preguntar si desea agregar más datos
+    stateManager.setState(ctx.from.id, 'pagar_waiting_datos_extra');
+    
+    const message = `✅ *Código registrado*\n\n` +
+      `📄 Código: ${codigoCompleto}\n\n` +
+      `¿Deseas agregar algún dato necesario?`;
+    
+    const keyboard = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: 'Sí', callback_data: 'pagar_si_datos_extra' },
+            { text: 'No', callback_data: 'pagar_no_datos_extra' }
+          ],
           [{ text: 'Regresar', callback_data: 'action_back' }]
         ]
       }
