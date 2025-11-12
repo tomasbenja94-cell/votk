@@ -11,6 +11,8 @@ const commandHandlers = require('../commands');
 const config = require('../../config/default.json');
 const dailySummaryService = require('../../services/dailySummaryService');
 const webhookService = require('../../services/webhookService');
+const { generatePaymentReceiptPDF } = require('../utils/pdfReceipt');
+const { generateReceiptImage } = require('../utils/receiptImage');
 
 const ADMIN_PERMISSIONS = {
   superadmin: {
@@ -1597,56 +1599,45 @@ const handlers = {
         { transactionId }
       );
 
-      // Get user info for notifications
       const userResult = await pool.query(
         'SELECT * FROM users WHERE id = $1',
         [transaction.user_id]
       );
       const user = userResult.rows[0];
 
-      // Get transaction details to check if it's multas (after status update, get fresh data)
       const txDetailsAfter = await pool.query(
         'SELECT * FROM transactions WHERE id = $1',
         [transactionId]
       );
-      
+
       if (txDetailsAfter.rows.length === 0) {
-        console.error('❌ Transaction not found after update!');
         await ctx.reply('❌ Error: Transacción no encontrada después de actualizar');
         return;
       }
-      
+
       const txAfter = txDetailsAfter.rows[0];
 
-      // IMMEDIATELY send confirmation message to client - DO THIS FIRST
       const bot = require('../bot').bot;
       const formatARS = require('../../utils/helpers').formatARS;
       const animationManager = require('../utils/animations');
-      
-      console.log(`[DEBUG handlePagoConfirm] IMMEDIATELY sending confirmation to user ${transaction.telegram_id} for transaction ${transactionId}`);
-      
-      // Get fresh transaction data for the message
+
       const txForMessage = await pool.query(
         'SELECT proof_image, amount_ars, amount_usdt, identifier, type FROM transactions WHERE id = $1',
         [transactionId]
       );
-      
+
       if (txForMessage.rows.length === 0) {
-        console.error('❌ Transaction not found after update!');
         await ctx.reply('❌ Error: Transacción no encontrada');
         return;
       }
-      
-      // Get service name from admin message or determine from transaction type
+
       let nombreServicio = 'Servicio';
       try {
         const adminMessageText = ctx.callbackQuery.message.text || ctx.callbackQuery.message.caption || '';
-        // Try to extract service name from admin message
         const servicioMatch = adminMessageText.match(/📋 Servicio: (.+)/);
         if (servicioMatch) {
           nombreServicio = servicioMatch[1].trim();
         } else {
-          // Determine from message type
           if (adminMessageText.includes('Macro/PlusPagos') || adminMessageText.includes('MACRO / PLUSPAGOS')) {
             nombreServicio = 'Macro/PlusPagos';
           } else if (adminMessageText.includes('Rentas Córdoba') || adminMessageText.includes('RENTAS CÓRDOBA')) {
@@ -1657,11 +1648,8 @@ const handlers = {
             nombreServicio = 'Multa';
           }
         }
-      } catch (e) {
-        console.log('Could not extract service name, using default');
-      }
-      
-      // Prepare confirmation message with ALL information
+      } catch (e) {}
+
       const montoFormateado = txForMessage.rows[0]?.amount_ars ? formatARS(txForMessage.rows[0].amount_ars) : '';
       const amountUSDT = parseFloat(txForMessage.rows[0]?.amount_usdt || 0);
       const fechaHora = new Date().toLocaleString('es-AR', { 
@@ -1672,7 +1660,7 @@ const handlers = {
         hour: '2-digit',
         minute: '2-digit'
       });
-      
+
       const finalMessage = `*Pago realizado* ✅\n\n` +
         `Su pago de *${nombreServicio}* fue acreditado correctamente. ✅\n\n` +
         `*Datos de la operación:*\n\n` +
@@ -1680,7 +1668,7 @@ const handlers = {
         `*Monto abonado:* ${montoFormateado}\n` +
         `*Cargo aplicado:* ${amountUSDT.toFixed(0)} USDT\n\n` +
         `Gracias por confiar en Binopolis Pay.`;
-      
+
       const menuKeyboard = {
         reply_markup: {
           inline_keyboard: [
@@ -1748,6 +1736,74 @@ const handlers = {
           console.error('❌❌❌ CRITICAL: Could not send ANY message to user:', retryError);
           // Don't throw - continue with other operations
         }
+      }
+      
+      // Send PDF receipt after confirmation
+      try {
+        const adminMessageRaw = ctx.callbackQuery?.message?.text || ctx.callbackQuery?.message?.caption || '';
+        
+        // Extract receipt details from admin message
+        let codeLabel = 'Referencia';
+        let codeValue = 'N/A';
+        
+        // Try to extract code/number from admin message
+        const codigoMatch = adminMessageRaw.match(/📄 Código\/Número: (.+)/);
+        if (codigoMatch) {
+          codeValue = codigoMatch[1].trim();
+        }
+
+        const pdfBuffer = await generatePaymentReceiptPDF({
+          transactionId,
+          headerName: nombreServicio || 'Pago',
+          serviceName: nombreServicio || 'Servicio',
+          codeLabel: codeLabel,
+          codeValue: codeValue,
+          amountFormatted: montoFormateado
+        });
+
+        await bot.telegram.sendDocument(
+          transaction.telegram_id,
+          { source: pdfBuffer, filename: `comprobante_pago_${transactionId}.pdf` },
+          {
+            caption: `✅ Comprobante de pago #${transactionId}`,
+            parse_mode: 'Markdown',
+            disable_notification: false
+          }
+        );
+      } catch (pdfError) {
+        console.error('Error generating or sending receipt PDF:', pdfError);
+      }
+      
+      // Generate and send receipt image to public channel
+      try {
+        const publicChannel = config.public_channel;
+        if (publicChannel) {
+          // Generate receipt image
+          const receiptImageBuffer = await generateReceiptImage({
+            empresa: nombreServicio
+          });
+
+          // Create caption message
+          const channelMessage = `Pago realizado exitosamente. ✅\n\n` +
+            `Empresa: ${nombreServicio}\n` +
+            `Monto: ${montoFormateado}\n` +
+            `Transacción #${transactionId}\n\n` +
+            `PAGO AUTOMÁTICO, ${config.bot_username || '@binopolisPAY_bot'}`;
+
+          // Send image to public channel
+          await bot.telegram.sendPhoto(
+            publicChannel,
+            { source: receiptImageBuffer },
+            {
+              caption: channelMessage,
+              parse_mode: 'Markdown'
+            }
+          );
+          console.log(`✅ Comprobante enviado al canal público ${publicChannel}`);
+        }
+      } catch (channelError) {
+        console.error('Error sending receipt to public channel:', channelError);
+        // No lanzar error - esto no debe bloquear la confirmación del pago
       }
       
       // Now handle admin group message updates (non-blocking)
