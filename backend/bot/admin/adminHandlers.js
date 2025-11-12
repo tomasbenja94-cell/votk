@@ -1738,40 +1738,62 @@ const handlers = {
         }
       }
       
-      // Send PDF receipt after confirmation
-      try {
-        const adminMessageRaw = ctx.callbackQuery?.message?.text || ctx.callbackQuery?.message?.caption || '';
+      // Send PDF receipt after confirmation - ONLY ONCE after payment is confirmed
+      // Check if PDF was already sent by checking transaction status
+      const txStatusCheck = await pool.query(
+        'SELECT status, proof_image FROM transactions WHERE id = $1',
+        [transactionId]
+      );
+      
+      if (txStatusCheck.rows.length > 0 && txStatusCheck.rows[0].status === 'pagado') {
+        // Only send PDF if payment is confirmed and not already sent
+        const proofImage = txStatusCheck.rows[0].proof_image || '';
+        const pdfAlreadySent = proofImage.includes('pdf_sent');
         
-        // Extract receipt details from admin message
-        let codeLabel = 'Referencia';
-        let codeValue = 'N/A';
-        
-        // Try to extract code/number from admin message
-        const codigoMatch = adminMessageRaw.match(/📄 Código\/Número: (.+)/);
-        if (codigoMatch) {
-          codeValue = codigoMatch[1].trim();
-        }
+        if (!pdfAlreadySent) {
+          try {
+            const adminMessageRaw = ctx.callbackQuery?.message?.text || ctx.callbackQuery?.message?.caption || '';
+            
+            // Extract receipt details from admin message
+            let codeLabel = 'Referencia';
+            let codeValue = 'N/A';
+            
+            // Try to extract code/number from admin message
+            const codigoMatch = adminMessageRaw.match(/📄 Código\/Número: (.+)/);
+            if (codigoMatch) {
+              codeValue = codigoMatch[1].trim();
+            }
 
-        const pdfBuffer = await generatePaymentReceiptPDF({
-          transactionId,
-          headerName: nombreServicio || 'Pago',
-          serviceName: nombreServicio || 'Servicio',
-          codeLabel: codeLabel,
-          codeValue: codeValue,
-          amountFormatted: montoFormateado
-        });
+            const pdfBuffer = await generatePaymentReceiptPDF({
+              transactionId,
+              headerName: nombreServicio || 'Pago',
+              serviceName: nombreServicio || 'Servicio',
+              codeLabel: codeLabel,
+              codeValue: codeValue,
+              amountFormatted: montoFormateado
+            });
 
-        await bot.telegram.sendDocument(
-          transaction.telegram_id,
-          { source: pdfBuffer, filename: `comprobante_pago_${transactionId}.pdf` },
-          {
-            caption: `✅ Comprobante de pago #${transactionId}`,
-            parse_mode: 'Markdown',
-            disable_notification: false
+            await bot.telegram.sendDocument(
+              transaction.telegram_id,
+              { source: pdfBuffer, filename: `comprobante_pago_${transactionId}.pdf` },
+              {
+                caption: `✅ Comprobante de pago #${transactionId}`,
+                parse_mode: 'Markdown',
+                disable_notification: false
+              }
+            );
+            
+            // Mark PDF as sent
+            await pool.query(
+              'UPDATE transactions SET proof_image = COALESCE(proof_image, \'\') || \'|pdf_sent\' WHERE id = $1',
+              [transactionId]
+            );
+            
+            console.log(`✅ PDF receipt sent to user ${transaction.telegram_id} for transaction #${transactionId}`);
+          } catch (pdfError) {
+            console.error('Error generating or sending receipt PDF:', pdfError);
           }
-        );
-      } catch (pdfError) {
-        console.error('Error generating or sending receipt PDF:', pdfError);
+        }
       }
       
       // Generate and send receipt image to public channel
